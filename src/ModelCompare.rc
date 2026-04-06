@@ -1,0 +1,46 @@
+// Microsoft Visual C++ generated resource script.
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+#include "afxres.h"
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Main Dialog — Compact top, two-panel bottom
+//
+IDD_MODELCOMPARE_DIALOG DIALOGEX 0, 0, 560, 380
+STYLE DS_SHELLFONT | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "LAI Model Compare Tool"
+FONT 9, "Segoe UI", 400, 0, 0x0
+BEGIN
+    LTEXT           "Left Model (Reference):", IDC_STATIC_LEFT_LABEL, 8, 10, 120, 10
+    EDITTEXT        IDC_EDIT_LEFT_PATH, 132, 8, 300, 14, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "Browse...", IDC_BTN_BROWSE_LEFT, 436, 7, 50, 16
+
+    LTEXT           "Right Model (Target):", IDC_STATIC_RIGHT_LABEL, 8, 28, 120, 10
+    EDITTEXT        IDC_EDIT_RIGHT_PATH, 132, 26, 300, 14, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "Browse...", IDC_BTN_BROWSE_RIGHT, 436, 25, 50, 16
+
+    PUSHBUTTON      "Compare\nModels", IDC_BTN_COMPARE, 492, 7, 60, 34, BS_MULTILINE
+
+    LTEXT           "Select two model folders and click Compare.", IDC_STATIC_SUMMARY, 8, 48, 544, 10
+
+    LTEXT           "Diff Files", IDC_STATIC_FILES_HEADER, 8, 62, 130, 10
+    CONTROL         "", IDC_LIST_FILES, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP, 8, 72, 130, 300
+
+    LTEXT           "ID Mismatches", IDC_STATIC_MISMATCH_HEADER, 145, 62, 407, 10
+    PUSHBUTTON      "Apply All to Right", IDC_BTN_APPLY_ALL, 145, 73, 100, 16
+    PUSHBUTTON      "View in XML", IDC_BTN_VIEW_XML, 249, 73, 70, 16
+    CONTROL         "", IDC_LIST_MISMATCHES, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 145, 92, 407, 280
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// XML Viewer Dialog
+//
+IDD_XMLVIEWER_DIALOG DIALOGEX 0, 0, 500, 400
+STYLE DS_SHELLFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX
+CAPTION "XML Viewer"
+FONT 9, "Consolas", 400, 0, 0x0
+BEGIN
+    CONTROL         "", IDC_RICHEDIT_XML, "RichEdit20W", ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | ES_AUTOHSCROLL | WS_VSCROLL | WS_HSCROLL | WS_BORDER | WS_TABSTOP, 0, 0, 500, 400
+END

@@ -1,0 +1,29 @@
+# Visual Studio
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.ipch
+*.log
+*.tlog
+*.idb
+*.pdb
+*.ilk
+*.aps
+*.ncb
+*.pyc
+
+# Local settings
+.vscode/
+
+# Build artifacts
+x64/
+Debug/
+Release/
+ipch/
+*.VC.db
+*.sln.docstates
+*.suo
