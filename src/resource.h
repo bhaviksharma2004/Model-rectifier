@@ -28,6 +28,7 @@
 #define IDC_BTN_APPLY_ALL               1011
 #define IDC_BTN_VIEW_XML                1012
 #define IDC_LIST_MISMATCHES             1013
+#define IDC_BTN_FILE_ACTION             1014
 
 // XML Viewer Dialog
 #define IDC_RICHEDIT_XML                1100
