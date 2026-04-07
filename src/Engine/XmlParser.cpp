@@ -2,6 +2,10 @@
 // XmlParser.cpp
 // Implementation of the LAI XML configuration file parser.
 //
+// Two parsing modes:
+//   1. Parse()             — Flat list of <val> nodes (XML viewer, legacy)
+//   2. ParseHierarchical() — Tree of group→spec→val (structural comparator)
+//
 // Uses TinyXML2 for XML parsing. Reads the file via std::ifstream to properly
 // handle Unicode file paths on Windows (TinyXML2's LoadFile uses fopen which
 // doesn't support wide paths).
@@ -30,7 +34,6 @@ static std::string CleanName(const std::string& raw) {
     auto pos = raw.find("$$");
     if (pos != std::string::npos) {
         std::string cleaned = raw.substr(0, pos);
-        // Trim trailing whitespace
         while (!cleaned.empty() && (cleaned.back() == ' ' || cleaned.back() == '\t')) {
             cleaned.pop_back();
         }
@@ -40,74 +43,82 @@ static std::string CleanName(const std::string& raw) {
 }
 
 // ---------------------------------------------------------------------------
-// Parse: Main entry point
+// Helper: Load XML content from a wide-path file into a TinyXML2 document.
+//         Returns false and sets errorMessage on failure.
+// ---------------------------------------------------------------------------
+static bool LoadDocument(const std::filesystem::path& filePath,
+                         tinyxml2::XMLDocument& doc,
+                         std::string& errorMessage)
+{
+    std::ifstream fs(filePath, std::ios::in | std::ios::binary);
+    if (!fs.is_open()) {
+        errorMessage = "Failed to open file: " + filePath.u8string();
+        return false;
+    }
+
+    std::ostringstream ss;
+    ss << fs.rdbuf();
+    std::string content = ss.str();
+    fs.close();
+
+    if (doc.Parse(content.c_str(), content.size()) != tinyxml2::XML_SUCCESS) {
+        errorMessage = "XML parse error in " + filePath.u8string()
+                     + ": " + doc.ErrorStr();
+        return false;
+    }
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: Find root <data> element or set error.
+// ---------------------------------------------------------------------------
+static tinyxml2::XMLElement* FindDataRoot(tinyxml2::XMLDocument& doc,
+                                          const std::filesystem::path& filePath,
+                                          std::string& errorMessage)
+{
+    auto* dataElem = doc.FirstChildElement("data");
+    if (!dataElem) {
+        errorMessage = "Missing <data> root element in " + filePath.u8string();
+    }
+    return dataElem;
+}
+
+// ---------------------------------------------------------------------------
+// Parse: Flat mode — returns every <val> node with full parent context.
 // ---------------------------------------------------------------------------
 XmlParser::ParseResult XmlParser::Parse(const std::filesystem::path& filePath) {
     ParseResult result;
 
-    // --- Read file content via std::ifstream (handles Unicode paths) ---
-    std::ifstream fileStream(filePath, std::ios::in | std::ios::binary);
-    if (!fileStream.is_open()) {
-        result.success = false;
-        result.errorMessage = "Failed to open file: " + filePath.u8string();
-        return result;
-    }
-
-    std::ostringstream ss;
-    ss << fileStream.rdbuf();
-    std::string content = ss.str();
-    fileStream.close();
-
-    // --- Parse XML ---
     tinyxml2::XMLDocument doc;
-    tinyxml2::XMLError xmlErr = doc.Parse(content.c_str(), content.size());
-    if (xmlErr != tinyxml2::XML_SUCCESS) {
-        result.success = false;
-        result.errorMessage = "XML parse error in " + filePath.u8string()
-                            + ": " + doc.ErrorStr();
+    if (!LoadDocument(filePath, doc, result.errorMessage)) {
         return result;
     }
 
-    // --- Find root <data> element ---
-    tinyxml2::XMLElement* dataElem = doc.FirstChildElement("data");
-    if (!dataElem) {
-        result.success = false;
-        result.errorMessage = "Missing <data> root element in " + filePath.u8string();
-        return result;
-    }
+    auto* dataElem = FindDataRoot(doc, filePath, result.errorMessage);
+    if (!dataElem) return result;
 
-    // --- Walk hierarchy: <data> -> <group> -> <spec> -> <val> ---
+    // Walk hierarchy: <data> -> <group> -> <spec> -> <val>
     for (auto* groupElem = dataElem->FirstChildElement("group");
-         groupElem != nullptr;
-         groupElem = groupElem->NextSiblingElement("group"))
+         groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
         std::string groupId   = SafeAttr(groupElem, "group_ID");
         std::string groupName = CleanName(SafeAttr(groupElem, "group_name"));
-
-        // Skip groups without an ID
         if (groupId.empty()) continue;
 
         for (auto* specElem = groupElem->FirstChildElement("spec");
-             specElem != nullptr;
-             specElem = specElem->NextSiblingElement("spec"))
+             specElem; specElem = specElem->NextSiblingElement("spec"))
         {
             std::string specId   = SafeAttr(specElem, "spec_ID");
             std::string specName = CleanName(SafeAttr(specElem, "spec_name"));
-
-            // Skip specs without an ID
             if (specId.empty()) continue;
 
             for (auto* valElem = specElem->FirstChildElement("val");
-                 valElem != nullptr;
-                 valElem = valElem->NextSiblingElement("val"))
+                 valElem; valElem = valElem->NextSiblingElement("val"))
             {
                 std::string valId   = SafeAttr(valElem, "val_id");
                 std::string valName = CleanName(SafeAttr(valElem, "val_name"));
-
-                // Skip vals without an ID (per business rules)
                 if (valId.empty()) continue;
 
-                // Build the full node info
                 XmlNodeInfo node;
                 node.groupId     = groupId;
                 node.groupName   = groupName;
@@ -115,8 +126,6 @@ XmlParser::ParseResult XmlParser::Parse(const std::filesystem::path& filePath) {
                 node.specName    = specName;
                 node.valId       = valId;
                 node.valName     = valName;
-
-                // Capture data attributes for future extensibility
                 node.value       = SafeAttr(valElem, "value");
                 node.minVal      = SafeAttr(valElem, "min");
                 node.maxVal      = SafeAttr(valElem, "max");
@@ -125,6 +134,62 @@ XmlParser::ParseResult XmlParser::Parse(const std::filesystem::path& filePath) {
                 node.paramId     = SafeAttr(valElem, "param_id");
 
                 result.nodes.push_back(std::move(node));
+            }
+        }
+    }
+
+    result.success = true;
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// ParseHierarchical: Tree mode — preserves group→spec→val structure.
+//
+// Used by the structural comparator for top-down level-aware diffing.
+// Groups/specs/vals missing their primary ID are silently skipped.
+// ---------------------------------------------------------------------------
+HierarchicalParseResult XmlParser::ParseHierarchical(
+    const std::filesystem::path& filePath)
+{
+    HierarchicalParseResult result;
+
+    tinyxml2::XMLDocument doc;
+    if (!LoadDocument(filePath, doc, result.errorMessage)) {
+        return result;
+    }
+
+    auto* dataElem = FindDataRoot(doc, filePath, result.errorMessage);
+    if (!dataElem) return result;
+
+    for (auto* groupElem = dataElem->FirstChildElement("group");
+         groupElem; groupElem = groupElem->NextSiblingElement("group"))
+    {
+        std::string groupId = SafeAttr(groupElem, "group_ID");
+        if (groupId.empty()) continue;
+
+        ParsedGroup& group = result.groups[groupId];
+        group.groupId   = groupId;
+        group.groupName = CleanName(SafeAttr(groupElem, "group_name"));
+
+        for (auto* specElem = groupElem->FirstChildElement("spec");
+             specElem; specElem = specElem->NextSiblingElement("spec"))
+        {
+            std::string specId = SafeAttr(specElem, "spec_ID");
+            if (specId.empty()) continue;
+
+            ParsedSpec& spec = group.specs[specId];
+            spec.specId   = specId;
+            spec.specName = CleanName(SafeAttr(specElem, "spec_name"));
+
+            for (auto* valElem = specElem->FirstChildElement("val");
+                 valElem; valElem = valElem->NextSiblingElement("val"))
+            {
+                std::string valId = SafeAttr(valElem, "val_id");
+                if (valId.empty()) continue;
+
+                ParsedVal& val = spec.vals[valId];
+                val.valId   = valId;
+                val.valName = CleanName(SafeAttr(valElem, "val_name"));
             }
         }
     }

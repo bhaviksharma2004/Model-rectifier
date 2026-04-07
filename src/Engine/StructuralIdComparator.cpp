@@ -1,54 +1,93 @@
 // =============================================================================
 // StructuralIdComparator.cpp
-// Implements the structural ID comparison strategy.
+// Implements the structural ID comparison strategy with hierarchical diffing.
 //
-// Algorithm:
-//   1. Parse both XML files using XmlParser
-//   2. Build an unordered_set of composite keys for each file
-//   3. Compute set difference in both directions
-//   4. Return FileDiffResult with missing/extra entries
+// Algorithm (top-down):
+//   1. Parse both XML files using ParseHierarchical()
+//   2. Compare group_IDs — emit DiffLevel::Group for unmatched groups
+//   3. For matching groups, compare spec_IDs — emit DiffLevel::Spec
+//   4. For matching specs, compare val_ids — emit DiffLevel::Val
+//   5. Repeat in reverse direction for "extra in Right" diffs
+//
+// This ensures exactly ONE diff entry per structural mismatch at the
+// highest applicable hierarchy level, avoiding duplicate rows.
 // =============================================================================
 #include "pch.h"
 #include "StructuralIdComparator.h"
 #include "XmlParser.h"
 
-#include <unordered_set>
-#include <unordered_map>
+#include <algorithm>
 
 namespace ModelCompare {
 
 // ---------------------------------------------------------------------------
-// Helper: Build a lookup map from composite key -> XmlNodeInfo
+// Helper: Detect missing entries from `source` that are absent in `target`
+//         at the group→spec→val hierarchy, emitting at the highest level.
 // ---------------------------------------------------------------------------
-static std::unordered_map<std::string, const XmlNodeInfo*>
-BuildKeyMap(const std::vector<XmlNodeInfo>& nodes) {
-    std::unordered_map<std::string, const XmlNodeInfo*> map;
-    map.reserve(nodes.size());
-    for (const auto& node : nodes) {
-        if (node.HasValidIds()) {
-            map[node.CompositeKey()] = &node;
+static void DetectMissing(
+    const std::unordered_map<std::string, ParsedGroup>& source,
+    const std::unordered_map<std::string, ParsedGroup>& target,
+    std::vector<KeyDiffEntry>& output)
+{
+    for (const auto& [groupId, srcGroup] : source) {
+        auto targetGroupIt = target.find(groupId);
+
+        // Entire group is missing from target
+        if (targetGroupIt == target.end()) {
+            KeyDiffEntry entry;
+            entry.level      = DiffLevel::Group;
+            entry.groupId    = groupId;
+            entry.groupName  = srcGroup.groupName;
+            entry.childCount = static_cast<int>(srcGroup.specs.size());
+            entry.compositeKey = KeyDiffEntry::MakeKey(DiffLevel::Group, groupId);
+            output.push_back(std::move(entry));
+            continue;
+        }
+
+        // Group exists in both — compare specs within it
+        const auto& targetSpecs = targetGroupIt->second.specs;
+
+        for (const auto& [specId, srcSpec] : srcGroup.specs) {
+            auto targetSpecIt = targetSpecs.find(specId);
+
+            // Entire spec is missing from target's group
+            if (targetSpecIt == targetSpecs.end()) {
+                KeyDiffEntry entry;
+                entry.level      = DiffLevel::Spec;
+                entry.groupId    = groupId;
+                entry.groupName  = srcGroup.groupName;
+                entry.specId     = specId;
+                entry.specName   = srcSpec.specName;
+                entry.childCount = static_cast<int>(srcSpec.vals.size());
+                entry.compositeKey = KeyDiffEntry::MakeKey(DiffLevel::Spec, groupId, specId);
+                output.push_back(std::move(entry));
+                continue;
+            }
+
+            // Spec exists in both — compare vals within it
+            const auto& targetVals = targetSpecIt->second.vals;
+
+            for (const auto& [valId, srcVal] : srcSpec.vals) {
+                if (targetVals.find(valId) == targetVals.end()) {
+                    KeyDiffEntry entry;
+                    entry.level      = DiffLevel::Val;
+                    entry.groupId    = groupId;
+                    entry.groupName  = srcGroup.groupName;
+                    entry.specId     = specId;
+                    entry.specName   = srcSpec.specName;
+                    entry.valId      = valId;
+                    entry.valName    = srcVal.valName;
+                    entry.childCount = 0;
+                    entry.compositeKey = KeyDiffEntry::MakeKey(DiffLevel::Val, groupId, specId, valId);
+                    output.push_back(std::move(entry));
+                }
+            }
         }
     }
-    return map;
 }
 
 // ---------------------------------------------------------------------------
-// Helper: Convert XmlNodeInfo to a KeyDiffEntry for display
-// ---------------------------------------------------------------------------
-static KeyDiffEntry ToKeyDiffEntry(const XmlNodeInfo& node) {
-    KeyDiffEntry entry;
-    entry.compositeKey = node.CompositeKey();
-    entry.groupId      = node.groupId;
-    entry.groupName    = node.groupName;
-    entry.specId       = node.specId;
-    entry.specName     = node.specName;
-    entry.valId        = node.valId;
-    entry.valName      = node.valName;
-    return entry;
-}
-
-// ---------------------------------------------------------------------------
-// CompareFiles: Main comparison logic
+// CompareFiles: Main comparison logic — hierarchical top-down diff detection
 // ---------------------------------------------------------------------------
 FileDiffResult StructuralIdComparator::CompareFiles(
     const std::filesystem::path& leftFile,
@@ -56,36 +95,31 @@ FileDiffResult StructuralIdComparator::CompareFiles(
 {
     FileDiffResult result;
 
-    // Parse both files
-    auto leftParsed  = XmlParser::Parse(leftFile);
-    auto rightParsed = XmlParser::Parse(rightFile);
+    auto leftParsed  = XmlParser::ParseHierarchical(leftFile);
+    auto rightParsed = XmlParser::ParseHierarchical(rightFile);
 
-    // If either file fails to parse, treat as modified with error info
     if (!leftParsed.success || !rightParsed.success) {
         result.status = FileDiffResult::Status::Modified;
         return result;
     }
 
-    // Build key maps for O(1) lookup
-    auto leftMap  = BuildKeyMap(leftParsed.nodes);
-    auto rightMap = BuildKeyMap(rightParsed.nodes);
+    // Count total leaf keys for summary statistics
+    size_t leftCount = 0, rightCount = 0;
+    for (const auto& [_, g] : leftParsed.groups)
+        for (const auto& [__, s] : g.specs)
+            leftCount += s.vals.size();
+    for (const auto& [_, g] : rightParsed.groups)
+        for (const auto& [__, s] : g.specs)
+            rightCount += s.vals.size();
 
-    result.leftKeyCount  = leftMap.size();
-    result.rightKeyCount = rightMap.size();
+    result.leftKeyCount  = leftCount;
+    result.rightKeyCount = rightCount;
 
-    // Find keys in Left that are missing from Right
-    for (const auto& [key, nodePtr] : leftMap) {
-        if (rightMap.find(key) == rightMap.end()) {
-            result.missingInRight.push_back(ToKeyDiffEntry(*nodePtr));
-        }
-    }
+    // Detect missing in Right (present in Left, absent in Right)
+    DetectMissing(leftParsed.groups, rightParsed.groups, result.missingInRight);
 
-    // Find keys in Right that are extra (not in Left)
-    for (const auto& [key, nodePtr] : rightMap) {
-        if (leftMap.find(key) == leftMap.end()) {
-            result.extraInRight.push_back(ToKeyDiffEntry(*nodePtr));
-        }
-    }
+    // Detect extra in Right (present in Right, absent in Left)
+    DetectMissing(rightParsed.groups, leftParsed.groups, result.extraInRight);
 
     // Determine status
     if (result.missingInRight.empty() && result.extraInRight.empty()) {
@@ -94,7 +128,7 @@ FileDiffResult StructuralIdComparator::CompareFiles(
         result.status = FileDiffResult::Status::Modified;
     }
 
-    // Sort entries by composite key for consistent display
+    // Sort entries by composite key for consistent display order
     auto sortByKey = [](const KeyDiffEntry& a, const KeyDiffEntry& b) {
         return a.compositeKey < b.compositeKey;
     };

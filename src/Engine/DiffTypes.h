@@ -1,11 +1,14 @@
 // =============================================================================
 // DiffTypes.h
 // Core data structures for the Model Compare engine.
-// 
+//
 // Design:
+//   - DiffLevel indicates the hierarchy tier at which a diff was detected.
 //   - XmlNodeInfo captures the FULL hierarchy context of each <val> node,
 //     including all attributes. This enables future comparison strategies
 //     to compare values, names, or any other attribute without parser changes.
+//   - KeyDiffEntry represents a single structural mismatch at any hierarchy
+//     level (group, spec, or val).
 //   - FileDiffResult represents the comparison outcome for a single XML file.
 //   - ModelDiffReport aggregates results across all files in two model dirs.
 //
@@ -25,12 +28,28 @@
 namespace ModelCompare {
 
 // ---------------------------------------------------------------------------
+// DiffLevel — The hierarchy tier at which a structural mismatch was detected.
+//
+//   Group — An entire <group> is missing or extra.
+//   Spec  — A <spec> within a matching group is missing or extra.
+//   Val   — A <val> within a matching spec is missing or extra.
+// ---------------------------------------------------------------------------
+enum class DiffLevel {
+    Group,
+    Spec,
+    Val
+};
+
+// ---------------------------------------------------------------------------
 // XmlNodeInfo — Represents a single <val> node with its full parent context.
 //
 // Hierarchy: <data> -> <group> -> <spec> -> <val>
 //
 // All attributes are captured for extensibility. Current comparison only
 // uses the ID fields, but future strategies may use value/min/max/etc.
+//
+// NOTE: This struct is used by the flat parser (XmlParser::Parse) and the
+//       XML viewer. The hierarchical comparator uses ParsedGroup/Spec/Val.
 // ---------------------------------------------------------------------------
 struct XmlNodeInfo {
     // Group-level attributes
@@ -66,17 +85,42 @@ struct XmlNodeInfo {
 };
 
 // ---------------------------------------------------------------------------
-// KeyDiffEntry — A single mismatched composite key with human-readable context.
-// Used to populate the detail view in the UI.
+// KeyDiffEntry — A single structural mismatch with hierarchy-aware context.
+//
+// The `level` field determines interpretation:
+//   DiffLevel::Group → groupId/groupName populated; specId/valId empty
+//   DiffLevel::Spec  → groupId + specId populated;  valId empty
+//   DiffLevel::Val   → all three IDs populated
+//
+// The `childCount` field indicates how many children are encompassed:
+//   Group-level → number of specs in the group
+//   Spec-level  → number of vals in the spec
+//   Val-level   → 0 (leaf node)
 // ---------------------------------------------------------------------------
 struct KeyDiffEntry {
-    std::string compositeKey;  // e.g., "G:1000|S:3001|V:101"
+    std::string compositeKey;
     std::string groupId;
     std::string groupName;
     std::string specId;
     std::string specName;
     std::string valId;
     std::string valName;
+    DiffLevel   level      = DiffLevel::Val;
+    int         childCount = 0;
+
+    // Build a composite key appropriate to the diff level.
+    static std::string MakeKey(DiffLevel lvl,
+                               const std::string& gid,
+                               const std::string& sid = "",
+                               const std::string& vid = "")
+    {
+        switch (lvl) {
+        case DiffLevel::Group: return "G:" + gid;
+        case DiffLevel::Spec:  return "G:" + gid + "|S:" + sid;
+        case DiffLevel::Val:   return "G:" + gid + "|S:" + sid + "|V:" + vid;
+        }
+        return {};
+    }
 };
 
 // ---------------------------------------------------------------------------

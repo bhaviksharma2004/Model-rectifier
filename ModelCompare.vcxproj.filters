@@ -47,6 +47,9 @@
     <ClCompile Include="src\Dialogs\MainDlg.cpp">
       <Filter>Source Files\Dialogs</Filter>
     </ClCompile>
+    <ClCompile Include="src\Dialogs\XmlViewerDlg.cpp">
+      <Filter>Source Files\Dialogs</Filter>
+    </ClCompile>
     <ClCompile Include="src\Engine\XmlParser.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
@@ -54,6 +57,9 @@
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
     <ClCompile Include="src\Engine\CompareEngine.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\XmlApplyEngine.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
     <ClCompile Include="thirdparty\tinyxml2\tinyxml2.cpp">
@@ -81,6 +87,9 @@
     <ClInclude Include="src\Dialogs\MainDlg.h">
       <Filter>Header Files\Dialogs</Filter>
     </ClInclude>
+    <ClInclude Include="src\Dialogs\XmlViewerDlg.h">
+      <Filter>Header Files\Dialogs</Filter>
+    </ClInclude>
     <ClInclude Include="src\Engine\DiffTypes.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
@@ -94,6 +103,9 @@
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\Engine\CompareEngine.h">
+      <Filter>Header Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\XmlApplyEngine.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
     <ClInclude Include="thirdparty\tinyxml2\tinyxml2.h">

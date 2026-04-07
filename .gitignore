@@ -27,3 +27,6 @@ ipch/
 *.VC.db
 *.sln.docstates
 *.suo
+
+# Visual Studio Edit and Continue
+enc_temp_folder/

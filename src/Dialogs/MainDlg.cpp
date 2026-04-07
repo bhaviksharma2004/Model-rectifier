@@ -373,24 +373,49 @@ void CMainDlg::PopulateMismatchList(int fileIndex) {
         m_displayDiffs.push_back({ false, e });
     }
 
-    // Populate list with Status + dynamic Apply text
+    // Populate list with level-aware display
     for (int i = 0; i < (int)m_displayDiffs.size(); i++) {
         const auto& d = m_displayDiffs[i];
         int idx = m_listMismatches.InsertItem(i, CString(d.entry.compositeKey.c_str()));
-        m_listMismatches.SetItemText(idx, COL_GROUP,   CString(d.entry.groupName.c_str()));
-        m_listMismatches.SetItemText(idx, COL_SPEC,    CString(d.entry.specName.c_str()));
-        m_listMismatches.SetItemText(idx, COL_VALNAME, CString(d.entry.valName.c_str()));
+        m_listMismatches.SetItemText(idx, COL_GROUP, CString(d.entry.groupName.c_str()));
 
-        // Part 1.2: Status column — explicit diff direction
+        // Spec column: show spec name or child count for group-level diffs
+        CString specText;
+        switch (d.entry.level) {
+        case ModelCompare::DiffLevel::Group:
+            specText.Format(_T("(%d specs)"), d.entry.childCount);
+            break;
+        default:
+            specText = CString(d.entry.specName.c_str());
+            break;
+        }
+        m_listMismatches.SetItemText(idx, COL_SPEC, specText);
+
+        // ValName column: show val name or child count for spec-level diffs
+        CString valText;
+        switch (d.entry.level) {
+        case ModelCompare::DiffLevel::Group:
+            valText = _T("\u2014");  // em dash
+            break;
+        case ModelCompare::DiffLevel::Spec:
+            valText.Format(_T("(%d vals)"), d.entry.childCount);
+            break;
+        default:
+            valText = CString(d.entry.valName.c_str());
+            break;
+        }
+        m_listMismatches.SetItemText(idx, COL_VALNAME, valText);
+
+        // Status column
         m_listMismatches.SetItemText(idx, COL_STATUS,
             d.isMissingInRight ? _T("Deleted") : _T("Added"));
 
-        // Part 1.3: Dynamic action button text
+        // Dynamic action button text
         CString actionText = d.isMissingInRight ? _T("Add->Right") : _T("Delete->Right");
         m_listMismatches.SetItemText(idx, COL_APPLY, actionText);
 
-        // Part 1.4: View column (now after Apply)
-        m_listMismatches.SetItemText(idx, COL_VIEW, _T("\xD83D\xDD0D"));  // magnifying glass
+        // View column
+        m_listMismatches.SetItemText(idx, COL_VIEW, _T("\xD83D\xDD0D"));
 
         m_listMismatches.SetItemData(idx, (DWORD_PTR)i);
     }
@@ -420,15 +445,22 @@ void CMainDlg::OnMismatchListClick(NMHDR* pNMHDR, LRESULT* pResult) {
     if (displayIdx < 0 || displayIdx >= (int)m_displayDiffs.size()) return;
 
     if (hitInfo.iSubItem == COL_VIEW) {
-        // View in XML
+        // View in XML — search by the appropriate level ID
         const auto& d = m_displayDiffs[displayIdx];
         CString searchStr;
-        if (!d.entry.valId.empty()) {
+        switch (d.entry.level) {
+        case ModelCompare::DiffLevel::Group:
+            searchStr.Format(_T("group_ID=\"%s\""), CString(d.entry.groupId.c_str()).GetString());
+            break;
+        case ModelCompare::DiffLevel::Spec:
+            searchStr.Format(_T("spec_ID=\"%s\""), CString(d.entry.specId.c_str()).GetString());
+            break;
+        case ModelCompare::DiffLevel::Val:
             searchStr.Format(_T("val_id=\"%s\""), CString(d.entry.valId.c_str()).GetString());
+            break;
         }
         OpenXmlViewer(d.entry.compositeKey, d.isMissingInRight, searchStr);
     } else if (hitInfo.iSubItem == COL_APPLY) {
-        // Apply single diff
         ApplySingleDiff(displayIdx);
     }
 }
@@ -572,7 +604,8 @@ void CMainDlg::OnBnClickedApplyAll() {
 
     if (result.success) {
         AfxMessageBox(_T("Applied successfully. Re-comparing..."), MB_ICONINFORMATION);
-        OnBnClickedCompare();
+        int savedIndex = m_selectedFileIndex;
+        RunCompare();
     } else {
         CString err;
         err.Format(_T("Apply failed: %s"), CString(result.errorMessage.c_str()).GetString());
@@ -597,14 +630,14 @@ void CMainDlg::ApplySingleDiff(int displayIndex) {
 
     ModelCompare::XmlApplyEngine::ApplyResult result;
     if (d.isMissingInRight) {
-        result = ModelCompare::XmlApplyEngine::AddMissingVal(leftPath, rightPath, d.entry);
+        result = ModelCompare::XmlApplyEngine::AddMissing(leftPath, rightPath, d.entry);
     } else {
-        result = ModelCompare::XmlApplyEngine::RemoveExtraVal(rightPath, d.entry);
+        result = ModelCompare::XmlApplyEngine::RemoveExtra(rightPath, d.entry);
     }
 
     if (result.success) {
         AfxMessageBox(_T("Applied. Re-comparing..."), MB_ICONINFORMATION);
-        OnBnClickedCompare();
+        RunCompare();
     } else {
         CString err;
         err.Format(_T("Apply failed: %s"), CString(result.errorMessage.c_str()).GetString());
