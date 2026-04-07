@@ -38,6 +38,10 @@ void CXmlViewerDlg::SetScrollToKey(const std::string& compositeKey, bool isMissi
     m_scrollToIsMissing = isMissing;
 }
 
+void CXmlViewerDlg::SetSearchTarget(const CString& targetSearch) {
+    m_targetSearch = targetSearch;
+}
+
 BOOL CXmlViewerDlg::OnInitDialog() {
     CDialogEx::OnInitDialog();
     SetWindowText(m_title);
@@ -72,7 +76,8 @@ BOOL CXmlViewerDlg::OnInitDialog() {
         (screenRect.Width() - w) / 2, (screenRect.Height() - h) / 2,
         w, h, SWP_NOZORDER);
 
-    return TRUE;
+    // Return FALSE to prevent MFC from automatically selecting all text
+    return FALSE;
 }
 
 void CXmlViewerDlg::OnSize(UINT nType, int cx, int cy) {
@@ -86,17 +91,17 @@ void CXmlViewerDlg::OnSize(UINT nType, int cx, int cy) {
 // LoadAndHighlight: Load XML, set text, highlight diff lines
 // ---------------------------------------------------------------------------
 void CXmlViewerDlg::LoadAndHighlight() {
-    std::ifstream fs(m_xmlPath, std::ios::in);
+    std::ifstream fs(m_xmlPath, std::ios::in | std::ios::binary);
     if (!fs.is_open()) {
         m_richEdit.SetWindowText(_T("Error: Could not open file."));
         return;
     }
 
-    // Read all lines
+    // Read all lines, decode from UTF-8 to display Unicode properly
     std::vector<CString> lines;
     std::string line;
     while (std::getline(fs, line)) {
-        lines.push_back(CString(line.c_str()));
+        lines.push_back(CString(CA2W(line.c_str(), CP_UTF8)));
     }
     fs.close();
 
@@ -147,15 +152,44 @@ void CXmlViewerDlg::LoadAndHighlight() {
         }
     }
 
-    m_richEdit.SetSel(0, 0);
-    m_richEdit.SetRedraw(TRUE);
-    m_richEdit.Invalidate();
+    // Remove global unselect that resets caret position, instead we rely on OnInitDialog return FALSE
 
-    // Scroll to target
+    // Scroll and highlight target search string if provided
+    if (!m_targetSearch.IsEmpty()) {
+        FINDTEXTEX ft;
+        ft.chrg.cpMin = 0;
+        ft.chrg.cpMax = -1;
+        ft.lpstrText = m_targetSearch.GetString();
+
+        long nPos = m_richEdit.FindText(FR_DOWN | FR_MATCHCASE, &ft);
+        if (nPos != -1) {
+            // Highlight specific text
+            m_richEdit.SetSel(ft.chrgText.cpMin, ft.chrgText.cpMax);
+            CHARFORMAT2 cfHighlight = {};
+            cfHighlight.cbSize = sizeof(cfHighlight);
+            cfHighlight.dwMask = CFM_BACKCOLOR | CFM_COLOR;
+            cfHighlight.crBackColor = RGB(255, 255, 0); // Yellow background
+            cfHighlight.crTextColor = RGB(0, 0, 0);     // Black text
+            m_richEdit.SetSelectionCharFormat(cfHighlight);
+            
+            // Unselect without moving caret to top
+            m_richEdit.SetSel(ft.chrgText.cpMin, ft.chrgText.cpMin);
+            
+            // Restore redraw and scroll
+            m_richEdit.SetRedraw(TRUE);
+            m_richEdit.Invalidate();
+            m_richEdit.SendMessage(EM_SCROLLCARET, 0, 0);
+            m_richEdit.LineScroll(-5, 0);
+            return;
+        } 
+    } 
+    
+    // Fallback to row scroll
     if (scrollToLine >= 0) {
+        m_richEdit.SetRedraw(TRUE);
+        m_richEdit.Invalidate();
         ScrollToLine(scrollToLine);
     } else if (!m_extra.empty() || !m_missing.empty()) {
-        // Scroll to first diff
         int firstDiff = -1;
         if (!m_extra.empty()) {
             firstDiff = FindValLine(lines, m_extra[0].groupId, m_extra[0].specId, m_extra[0].valId);
@@ -163,9 +197,16 @@ void CXmlViewerDlg::LoadAndHighlight() {
         if (firstDiff < 0 && !m_missing.empty()) {
             firstDiff = FindValLine(lines, m_missing[0].groupId, m_missing[0].specId, "");
         }
+        
+        m_richEdit.SetRedraw(TRUE);
+        m_richEdit.Invalidate();
         if (firstDiff >= 0) ScrollToLine(firstDiff);
+    } else {
+        m_richEdit.SetRedraw(TRUE);
+        m_richEdit.Invalidate();
     }
 }
+
 
 // ---------------------------------------------------------------------------
 // FindValLine: Find line number of a val (or spec if valId empty) in the XML

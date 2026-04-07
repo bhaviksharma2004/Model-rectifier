@@ -288,7 +288,11 @@ void CMainDlg::OnMismatchListClick(NMHDR* pNMHDR, LRESULT* pResult) {
 
     if (hitInfo.iSubItem == COL_VIEW) {
         const auto& d = m_displayDiffs[displayIdx];
-        OpenXmlViewer(d.entry.compositeKey, d.isMissingInRight);
+        CString searchStr;
+        if (!d.entry.valId.empty()) {
+            searchStr.Format(_T("val_id=\"%s\""), CString(d.entry.valId.c_str()).GetString());
+        }
+        OpenXmlViewer(d.entry.compositeKey, d.isMissingInRight, searchStr);
     } else if (hitInfo.iSubItem == COL_APPLY) {
         ApplySingleDiff(displayIdx);
     }
@@ -301,7 +305,7 @@ void CMainDlg::OnBnClickedViewXml() {
     OpenXmlViewer();
 }
 
-void CMainDlg::OpenXmlViewer(const std::string& scrollToKey, bool isMissing) {
+void CMainDlg::OpenXmlViewer(const std::string& scrollToKey, bool isMissing, const CString& targetSearch) {
     if (m_selectedFileIndex < 0 || !m_report) return;
     const auto& fr = m_report->fileResults[m_selectedFileIndex];
 
@@ -321,6 +325,9 @@ void CMainDlg::OpenXmlViewer(const std::string& scrollToKey, bool isMissing) {
     dlg.SetDiffs(fr.missingInRight, fr.extraInRight);
     if (!scrollToKey.empty()) {
         dlg.SetScrollToKey(scrollToKey, isMissing);
+    }
+    if (!targetSearch.IsEmpty()) {
+        dlg.SetSearchTarget(targetSearch);
     }
     dlg.DoModal();
 }
@@ -489,6 +496,41 @@ void CMainDlg::RepositionControls(int cx, int cy) {
     int listH = panelH - (listY - y) - 2;
     if (listH < 50) listH = 50;
     m_listMismatches.MoveWindow(mismatchX, listY, mismatchW, listH);
+
+    ResizeListColumns();
+}
+
+void CMainDlg::ResizeListColumns() {
+    if (!m_listFiles.GetSafeHwnd() || !m_listMismatches.GetSafeHwnd()) return;
+
+    // File List: 1 column fills the whole space
+    CRect fileRect;
+    m_listFiles.GetClientRect(&fileRect);
+    m_listFiles.SetColumnWidth(0, fileRect.Width());
+
+    // Mismatch List: Proportional + right fill
+    CRect mmRect;
+    m_listMismatches.GetClientRect(&mmRect);
+    int totalWidth = mmRect.Width();
+
+    // Fixed widths for View/Apply buttons
+    int colViewW = 50;
+    int colApplyW = 55;
+    int remainingWidth = totalWidth - colViewW - colApplyW;
+    
+    if (remainingWidth > 0) {
+        int colKeyW = (int)(remainingWidth * 0.35);
+        int colGroupW = (int)(remainingWidth * 0.25);
+        int colSpecW = (int)(remainingWidth * 0.20);
+        int colValNameW = remainingWidth - colKeyW - colGroupW - colSpecW;
+
+        m_listMismatches.SetColumnWidth(COL_KEY, colKeyW);
+        m_listMismatches.SetColumnWidth(COL_GROUP, colGroupW);
+        m_listMismatches.SetColumnWidth(COL_SPEC, colSpecW);
+        m_listMismatches.SetColumnWidth(COL_VALNAME, colValNameW);
+        m_listMismatches.SetColumnWidth(COL_VIEW, colViewW);
+        m_listMismatches.SetColumnWidth(COL_APPLY, colApplyW);
+    }
 }
 
 // =============================================================================

@@ -21,6 +21,7 @@ public:
         const std::vector<ModelCompare::KeyDiffEntry>& extra
     );
     void SetScrollToKey(const std::string& compositeKey, bool isMissing);
+    void SetSearchTarget(const CString& targetSearch);
 
 protected:
     virtual void DoDataExchange(CDataExchange* pDX) override;
@@ -38,6 +39,7 @@ private:
     std::vector<ModelCompare::KeyDiffEntry> m_extra;
     std::string m_scrollToKey;
     bool m_scrollToIsMissing = false;
+    CString m_targetSearch;
 
     void LoadAndHighlight();
     void ApplySyntaxHighlighting();

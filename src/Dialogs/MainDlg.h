@@ -65,6 +65,7 @@ private:
     // Helpers
     CString BrowseForFolder(const CString& title);
     void SetupListColumns();
+    void ResizeListColumns();
     void PopulateFileList();
     void PopulateMismatchList(int fileIndex);
     void ClearMismatchList();
@@ -72,7 +73,7 @@ private:
     void EnableCompareUI(bool enable);
     void UpdateSummary(const CString& text);
     void RunCompare();
-    void OpenXmlViewer(const std::string& scrollToKey = "", bool isMissing = false);
+    void OpenXmlViewer(const std::string& scrollToKey = "", bool isMissing = false, const CString& targetSearch = _T(""));
     void ApplySingleDiff(int displayIndex);
 
     // Get paths to left/right files for the selected diff file
