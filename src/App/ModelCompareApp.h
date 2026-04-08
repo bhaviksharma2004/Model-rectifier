@@ -15,5 +15,5 @@ public:
     DECLARE_MESSAGE_MAP()
 };
 
-// The single global application object
+
 extern CModelCompareApp theApp;

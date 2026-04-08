@@ -20,10 +20,7 @@
 
 namespace ModelCompare {
 
-// ---------------------------------------------------------------------------
-// Helper: Detect missing entries from `source` that are absent in `target`
-//         at the group→spec→val hierarchy, emitting at the highest level.
-// ---------------------------------------------------------------------------
+
 static void DetectMissing(
     const std::unordered_map<std::string, ParsedGroup>& source,
     const std::unordered_map<std::string, ParsedGroup>& target,
@@ -32,7 +29,6 @@ static void DetectMissing(
     for (const auto& [groupId, srcGroup] : source) {
         auto targetGroupIt = target.find(groupId);
 
-        // Entire group is missing from target
         if (targetGroupIt == target.end()) {
             KeyDiffEntry entry;
             entry.level      = DiffLevel::Group;
@@ -44,13 +40,11 @@ static void DetectMissing(
             continue;
         }
 
-        // Group exists in both — compare specs within it
         const auto& targetSpecs = targetGroupIt->second.specs;
 
         for (const auto& [specId, srcSpec] : srcGroup.specs) {
             auto targetSpecIt = targetSpecs.find(specId);
 
-            // Entire spec is missing from target's group
             if (targetSpecIt == targetSpecs.end()) {
                 KeyDiffEntry entry;
                 entry.level      = DiffLevel::Spec;
@@ -64,7 +58,6 @@ static void DetectMissing(
                 continue;
             }
 
-            // Spec exists in both — compare vals within it
             const auto& targetVals = targetSpecIt->second.vals;
 
             for (const auto& [valId, srcVal] : srcSpec.vals) {
@@ -86,9 +79,6 @@ static void DetectMissing(
     }
 }
 
-// ---------------------------------------------------------------------------
-// CompareFiles: Main comparison logic — hierarchical top-down diff detection
-// ---------------------------------------------------------------------------
 FileDiffResult StructuralIdComparator::CompareFiles(
     const std::filesystem::path& leftFile,
     const std::filesystem::path& rightFile)
@@ -103,7 +93,6 @@ FileDiffResult StructuralIdComparator::CompareFiles(
         return result;
     }
 
-    // Count total leaf keys for summary statistics
     size_t leftCount = 0, rightCount = 0;
     for (const auto& [_, g] : leftParsed.groups)
         for (const auto& [__, s] : g.specs)
@@ -115,20 +104,16 @@ FileDiffResult StructuralIdComparator::CompareFiles(
     result.leftKeyCount  = leftCount;
     result.rightKeyCount = rightCount;
 
-    // Detect missing in Right (present in Left, absent in Right)
     DetectMissing(leftParsed.groups, rightParsed.groups, result.missingInRight);
 
-    // Detect extra in Right (present in Right, absent in Left)
     DetectMissing(rightParsed.groups, leftParsed.groups, result.extraInRight);
 
-    // Determine status
     if (result.missingInRight.empty() && result.extraInRight.empty()) {
         result.status = FileDiffResult::Status::Identical;
     } else {
         result.status = FileDiffResult::Status::Modified;
     }
 
-    // Sort entries by composite key for consistent display order
     auto sortByKey = [](const KeyDiffEntry& a, const KeyDiffEntry& b) {
         return a.compositeKey < b.compositeKey;
     };
@@ -138,4 +123,4 @@ FileDiffResult StructuralIdComparator::CompareFiles(
     return result;
 }
 
-} // namespace ModelCompare
+} 

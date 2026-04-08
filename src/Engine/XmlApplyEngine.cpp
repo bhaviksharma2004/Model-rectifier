@@ -21,9 +21,6 @@
 
 namespace ModelCompare {
 
-// ---------------------------------------------------------------------------
-// Helper: Load XML document from a wide-path file
-// ---------------------------------------------------------------------------
 static bool LoadDoc(const std::filesystem::path& path,
                     tinyxml2::XMLDocument& doc,
                     std::string& errorMsg)
@@ -45,9 +42,6 @@ static bool LoadDoc(const std::filesystem::path& path,
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// SaveDocument: Write XMLDocument to file via std::ofstream (Unicode safe)
-// ---------------------------------------------------------------------------
 bool XmlApplyEngine::SaveDocument(
     const std::filesystem::path& filePath, tinyxml2::XMLDocument& doc)
 {
@@ -60,26 +54,16 @@ bool XmlApplyEngine::SaveDocument(
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Safe attribute read
-// ---------------------------------------------------------------------------
 static const char* SafeAttr(const tinyxml2::XMLElement* e, const char* n) {
     const char* v = e->Attribute(n);
     return v ? v : "";
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Parse a numeric ID from a string for sorted comparison.
-//         Falls back to 0 if not a valid integer.
-// ---------------------------------------------------------------------------
 static int ParseNumericId(const char* idStr) {
     if (!idStr || !*idStr) return 0;
     return std::atoi(idStr);
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Find group element by group_ID
-// ---------------------------------------------------------------------------
 static tinyxml2::XMLElement* FindGroup(tinyxml2::XMLElement* data,
                                        const std::string& gid)
 {
@@ -91,9 +75,6 @@ static tinyxml2::XMLElement* FindGroup(tinyxml2::XMLElement* data,
     return nullptr;
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Find spec element by spec_ID within a group
-// ---------------------------------------------------------------------------
 static tinyxml2::XMLElement* FindSpec(tinyxml2::XMLElement* group,
                                       const std::string& sid)
 {
@@ -105,9 +86,6 @@ static tinyxml2::XMLElement* FindSpec(tinyxml2::XMLElement* group,
     return nullptr;
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Find val element by val_id within a spec
-// ---------------------------------------------------------------------------
 static tinyxml2::XMLElement* FindVal(tinyxml2::XMLElement* spec,
                                      const std::string& vid)
 {
@@ -119,13 +97,6 @@ static tinyxml2::XMLElement* FindVal(tinyxml2::XMLElement* spec,
     return nullptr;
 }
 
-// ---------------------------------------------------------------------------
-// InsertSorted: Insert `newNode` as a child of `parent`, maintaining
-//               ascending numeric ID order among siblings of `childTag`.
-//
-// Strategy: Find the last sibling whose ID <= newId, insert after it.
-//           If no such sibling exists, the new node goes first.
-// ---------------------------------------------------------------------------
 static void InsertSorted(tinyxml2::XMLElement* parent,
                          tinyxml2::XMLNode* newNode,
                          const char* childTag,
@@ -139,22 +110,17 @@ static void InsertSorted(tinyxml2::XMLElement* parent,
     {
         int siblingId = ParseNumericId(SafeAttr(sibling, idAttr));
         if (siblingId <= newId) {
-            insertAfter = sibling;  // keep scanning for the last one <= newId
+            insertAfter = sibling;
         } else {
-            break;  // sibling ID is greater, stop
+            break;
         }
     }
 
     if (insertAfter) {
         parent->InsertAfterChild(insertAfter, newNode);
     } else {
-        // New node has the smallest ID — insert at the very beginning.
-        // InsertFirstChild puts it before all existing children.
         auto* firstChild = parent->FirstChild();
         if (firstChild) {
-            // TinyXML2 has no InsertBeforeChild, so we detach all children,
-            // insert new node first, then re-attach. But a simpler approach:
-            // just use InsertFirstChild which inserts as the first child node.
             parent->InsertFirstChild(newNode);
         } else {
             parent->InsertEndChild(newNode);
@@ -162,10 +128,6 @@ static void InsertSorted(tinyxml2::XMLElement* parent,
     }
 }
 
-// ---------------------------------------------------------------------------
-// AddMissing: Copy a group, spec, or val from Left file into Right file.
-//             Insertion position is sorted by ascending ID.
-// ---------------------------------------------------------------------------
 XmlApplyEngine::ApplyResult XmlApplyEngine::AddMissing(
     const std::filesystem::path& leftFile,
     const std::filesystem::path& rightFile,
@@ -259,9 +221,6 @@ XmlApplyEngine::ApplyResult XmlApplyEngine::AddMissing(
     return result;
 }
 
-// ---------------------------------------------------------------------------
-// RemoveExtra: Delete a group, spec, or val from Right file.
-// ---------------------------------------------------------------------------
 XmlApplyEngine::ApplyResult XmlApplyEngine::RemoveExtra(
     const std::filesystem::path& rightFile,
     const KeyDiffEntry& entry)
@@ -331,12 +290,6 @@ XmlApplyEngine::ApplyResult XmlApplyEngine::RemoveExtra(
     return result;
 }
 
-// ---------------------------------------------------------------------------
-// ApplyAllDiffs: Apply all missing + extra diffs in a single load/save cycle.
-//
-// Order: removals first (to avoid referencing stale nodes), then additions
-//        with sorted insertion.
-// ---------------------------------------------------------------------------
 XmlApplyEngine::ApplyResult XmlApplyEngine::ApplyAllDiffs(
     const std::filesystem::path& leftFile,
     const std::filesystem::path& rightFile,
@@ -356,7 +309,6 @@ XmlApplyEngine::ApplyResult XmlApplyEngine::ApplyAllDiffs(
         return result;
     }
 
-    // --- Phase 1: Remove extras ---
     for (const auto& entry : extraInRight) {
         switch (entry.level) {
         case DiffLevel::Group: {
@@ -383,7 +335,6 @@ XmlApplyEngine::ApplyResult XmlApplyEngine::ApplyAllDiffs(
         }
     }
 
-    // --- Phase 2: Add missing (sorted insertion) ---
     for (const auto& entry : missingInRight) {
         switch (entry.level) {
         case DiffLevel::Group: {
@@ -434,4 +385,4 @@ XmlApplyEngine::ApplyResult XmlApplyEngine::ApplyAllDiffs(
     return result;
 }
 
-} // namespace ModelCompare
+}

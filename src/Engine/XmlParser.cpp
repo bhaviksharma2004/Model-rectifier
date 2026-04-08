@@ -19,17 +19,11 @@
 
 namespace ModelCompare {
 
-// ---------------------------------------------------------------------------
-// Helper: safely read an attribute, returning empty string if not present.
-// ---------------------------------------------------------------------------
 static std::string SafeAttr(const tinyxml2::XMLElement* elem, const char* name) {
     const char* val = elem->Attribute(name);
     return val ? val : "";
 }
 
-// ---------------------------------------------------------------------------
-// Helper: clean group/spec/val names by stripping the Korean suffix after "$$"
-// ---------------------------------------------------------------------------
 static std::string CleanName(const std::string& raw) {
     auto pos = raw.find("$$");
     if (pos != std::string::npos) {
@@ -42,10 +36,6 @@ static std::string CleanName(const std::string& raw) {
     return raw;
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Load XML content from a wide-path file into a TinyXML2 document.
-//         Returns false and sets errorMessage on failure.
-// ---------------------------------------------------------------------------
 static bool LoadDocument(const std::filesystem::path& filePath,
                          tinyxml2::XMLDocument& doc,
                          std::string& errorMessage)
@@ -69,9 +59,6 @@ static bool LoadDocument(const std::filesystem::path& filePath,
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Find root <data> element or set error.
-// ---------------------------------------------------------------------------
 static tinyxml2::XMLElement* FindDataRoot(tinyxml2::XMLDocument& doc,
                                           const std::filesystem::path& filePath,
                                           std::string& errorMessage)
@@ -83,9 +70,6 @@ static tinyxml2::XMLElement* FindDataRoot(tinyxml2::XMLDocument& doc,
     return dataElem;
 }
 
-// ---------------------------------------------------------------------------
-// Parse: Flat mode — returns every <val> node with full parent context.
-// ---------------------------------------------------------------------------
 XmlParser::ParseResult XmlParser::Parse(const std::filesystem::path& filePath) {
     ParseResult result;
 
@@ -97,7 +81,6 @@ XmlParser::ParseResult XmlParser::Parse(const std::filesystem::path& filePath) {
     auto* dataElem = FindDataRoot(doc, filePath, result.errorMessage);
     if (!dataElem) return result;
 
-    // Walk hierarchy: <data> -> <group> -> <spec> -> <val>
     for (auto* groupElem = dataElem->FirstChildElement("group");
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
@@ -142,12 +125,6 @@ XmlParser::ParseResult XmlParser::Parse(const std::filesystem::path& filePath) {
     return result;
 }
 
-// ---------------------------------------------------------------------------
-// ParseHierarchical: Tree mode — preserves group→spec→val structure.
-//
-// Used by the structural comparator for top-down level-aware diffing.
-// Groups/specs/vals missing their primary ID are silently skipped.
-// ---------------------------------------------------------------------------
 HierarchicalParseResult XmlParser::ParseHierarchical(
     const std::filesystem::path& filePath)
 {
@@ -198,4 +175,4 @@ HierarchicalParseResult XmlParser::ParseHierarchical(
     return result;
 }
 
-} // namespace ModelCompare
+}

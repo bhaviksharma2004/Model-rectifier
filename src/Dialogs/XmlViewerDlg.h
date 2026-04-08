@@ -11,14 +11,11 @@
 #include <string>
 #include <filesystem>
 
-// Internal message: deferred content loading after dialog is visible
+
 #define WM_XMLLOAD_DEFERRED  (WM_USER + 201)
-// Internal message: deferred deselection after load completes
 #define WM_XMLDESELECT       (WM_USER + 202)
 
-// ---------------------------------------------------------------------------
-// ColorRange — Describes a span of text to be colored during batch formatting.
-// ---------------------------------------------------------------------------
+
 struct ColorRange {
     int start;
     int end;
@@ -30,7 +27,6 @@ public:
     CXmlViewerDlg(CWnd* pParent = nullptr);
     enum { IDD = IDD_XMLVIEWER_DIALOG };
 
-    // Set the XML file to display and the diffs to highlight
     void SetFile(const std::filesystem::path& xmlPath, const CString& title);
     void SetDiffs(
         const std::vector<ModelCompare::KeyDiffEntry>& missing,
@@ -43,7 +39,7 @@ protected:
     virtual void DoDataExchange(CDataExchange* pDX) override;
     virtual BOOL OnInitDialog() override;
 
-    // Message handlers
+
     afx_msg void OnSize(UINT nType, int cx, int cy);
     afx_msg void OnMouseHWheel(UINT nFlags, short zDelta, CPoint pt);
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
@@ -54,12 +50,12 @@ protected:
 
 private:
     CRichEditCtrl m_richEdit;
-    CFont         m_codeFont;       // ClearType anti-aliased programming font
-    CBrush        m_brushDarkBg;    // Dark background brush for dialog
+    CFont         m_codeFont;
+    CBrush        m_brushDarkBg;
     std::filesystem::path m_xmlPath;
     CString m_title;
 
-    // Diff data
+
     std::vector<ModelCompare::KeyDiffEntry> m_missing;
     std::vector<ModelCompare::KeyDiffEntry> m_extra;
     std::string m_scrollToKey;
@@ -92,6 +88,6 @@ private:
     void HighlightLine(int lineIndex, COLORREF bgColor);
     void ScrollToLine(int lineIndex);
 
-    // Error reporting
+
     void ShowError(const CString& title, const CString& detail);
 };

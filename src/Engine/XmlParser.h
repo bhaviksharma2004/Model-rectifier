@@ -20,10 +20,7 @@
 
 namespace ModelCompare {
 
-// ---------------------------------------------------------------------------
-// Hierarchical parse result types — preserve the XML tree structure.
-// Used by StructuralIdComparator for top-down comparison.
-// ---------------------------------------------------------------------------
+
 struct ParsedVal {
     std::string valId;
     std::string valName;
@@ -32,41 +29,34 @@ struct ParsedVal {
 struct ParsedSpec {
     std::string specId;
     std::string specName;
-    std::unordered_map<std::string, ParsedVal> vals;  // keyed by val_id
+    std::unordered_map<std::string, ParsedVal> vals;
 };
 
 struct ParsedGroup {
     std::string groupId;
     std::string groupName;
-    std::unordered_map<std::string, ParsedSpec> specs;  // keyed by spec_ID
+    std::unordered_map<std::string, ParsedSpec> specs;
 };
 
 struct HierarchicalParseResult {
     bool        success = false;
     std::string errorMessage;
-    std::unordered_map<std::string, ParsedGroup> groups;  // keyed by group_ID
+    std::unordered_map<std::string, ParsedGroup> groups;
 };
 
-// ---------------------------------------------------------------------------
-// XmlParser — Dual-mode XML parser for LAI configuration files.
-// ---------------------------------------------------------------------------
+
 class XmlParser {
 public:
-    // Result of flat parsing (all <val> nodes with full parent context)
     struct ParseResult {
         bool        success = false;
         std::string errorMessage;
         std::vector<XmlNodeInfo> nodes;
     };
 
-    // Flat parse: extract all <val> nodes with hierarchy context.
-    // Nodes missing any required ID (group_ID, spec_ID, val_id) are skipped.
     static ParseResult Parse(const std::filesystem::path& filePath);
 
-    // Hierarchical parse: preserve the group→spec→val tree structure.
-    // Groups/specs/vals missing their primary ID are skipped.
     static HierarchicalParseResult ParseHierarchical(
         const std::filesystem::path& filePath);
 };
 
-} // namespace ModelCompare
+}

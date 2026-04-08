@@ -27,16 +27,12 @@ class IComparisonStrategy {
 public:
     virtual ~IComparisonStrategy() = default;
 
-    // Compare two XML files and return the diff result.
-    // Both files are guaranteed to exist when this is called.
     virtual FileDiffResult CompareFiles(
         const std::filesystem::path& leftFile,
         const std::filesystem::path& rightFile
     ) = 0;
 
-    // Human-readable description of what this strategy compares.
-    // Used for UI display and logging.
     virtual std::string GetDescription() const = 0;
 };
 
-} // namespace ModelCompare
+} 
