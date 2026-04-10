@@ -25,14 +25,43 @@ BEGIN
 
     LTEXT           "Select two model folders and click Compare.", IDC_STATIC_SUMMARY, 8, 48, 544, 10
 
-    LTEXT           "Diff Files", IDC_STATIC_FILES_HEADER, 8, 62, 130, 10
-    CONTROL         "", IDC_LIST_FILES, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP, 8, 72, 130, 300
+    CONTROL         "", IDC_TAB_MAIN, "SysTabControl32", WS_TABSTOP, 8, 62, 544, 310
+END
 
-    LTEXT           "ID Mismatches", IDC_STATIC_MISMATCH_HEADER, 145, 62, 407, 10
-    PUSHBUTTON      "Apply All to Right", IDC_BTN_APPLY_ALL, 145, 73, 100, 16
-    PUSHBUTTON      "View in XML", IDC_BTN_VIEW_XML, 249, 73, 70, 16
+/////////////////////////////////////////////////////////////////////////////
+// Spec ID Compare Dialog
+//
+IDD_TAB_SPEC_ID_COMPARE DIALOGEX 0, 0, 540, 290
+STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD
+FONT 9, "Segoe UI", 400, 0, 0x0
+BEGIN
+    LTEXT           "Diff Files", IDC_STATIC_FILES_HEADER, 0, 0, 130, 10
+    CONTROL         "", IDC_LIST_FILES, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP, 0, 14, 130, 276
+
+    LTEXT           "ID Mismatches", IDC_STATIC_MISMATCH_HEADER, 137, 0, 403, 10
+    PUSHBUTTON      "Apply Selection", IDC_BTN_APPLY_SELECTION, 137, 14, 100, 16
+    PUSHBUTTON      "Apply All to Right", IDC_BTN_APPLY_ALL, 241, 14, 100, 16
+    PUSHBUTTON      "View in XML", IDC_BTN_VIEW_XML, 345, 14, 70, 16
     PUSHBUTTON      "", IDC_BTN_FILE_ACTION, 0, 0, 10, 10, NOT WS_VISIBLE
-    CONTROL         "", IDC_LIST_MISMATCHES, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 145, 92, 407, 280
+    CONTROL         "", IDC_LIST_MISMATCHES, "SysListView32", LVS_REPORT | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 137, 34, 403, 256
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// XML Validation Dialog
+//
+IDD_TAB_XML_VALIDATION DIALOGEX 0, 0, 540, 290
+STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD
+FONT 9, "Segoe UI", 400, 0, 0x0
+BEGIN
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Spec Value Compare Dialog
+//
+IDD_TAB_SPEC_VALUE_COMPARE DIALOGEX 0, 0, 540, 290
+STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD
+FONT 9, "Segoe UI", 400, 0, 0x0
+BEGIN
 END
 
 /////////////////////////////////////////////////////////////////////////////

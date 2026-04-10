@@ -1,7 +1,3 @@
-// =============================================================================
-// CompareEngine.cpp
-// Implementation of the directory-level comparison orchestrator.
-// =============================================================================
 #include "pch.h"
 #include "CompareEngine.h"
 

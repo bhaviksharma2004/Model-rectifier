@@ -1,15 +1,3 @@
-// =============================================================================
-// XmlParser.cpp
-// Implementation of the LAI XML configuration file parser.
-//
-// Two parsing modes:
-//   1. Parse()             — Flat list of <val> nodes (XML viewer, legacy)
-//   2. ParseHierarchical() — Tree of group→spec→val (structural comparator)
-//
-// Uses TinyXML2 for XML parsing. Reads the file via std::ifstream to properly
-// handle Unicode file paths on Windows (TinyXML2's LoadFile uses fopen which
-// doesn't support wide paths).
-// =============================================================================
 #include "pch.h"
 #include "XmlParser.h"
 #include "tinyxml2/tinyxml2.h"

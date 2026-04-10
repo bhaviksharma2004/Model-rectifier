@@ -1,7 +1,3 @@
-// =============================================================================
-// ModelCompareApp.cpp
-// Application entry point — creates and displays the main dialog.
-// =============================================================================
 #include "pch.h"
 #include "resource.h"
 #include "ModelCompareApp.h"

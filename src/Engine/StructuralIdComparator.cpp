@@ -1,17 +1,3 @@
-// =============================================================================
-// StructuralIdComparator.cpp
-// Implements the structural ID comparison strategy with hierarchical diffing.
-//
-// Algorithm (top-down):
-//   1. Parse both XML files using ParseHierarchical()
-//   2. Compare group_IDs — emit DiffLevel::Group for unmatched groups
-//   3. For matching groups, compare spec_IDs — emit DiffLevel::Spec
-//   4. For matching specs, compare val_ids — emit DiffLevel::Val
-//   5. Repeat in reverse direction for "extra in Right" diffs
-//
-// This ensures exactly ONE diff entry per structural mismatch at the
-// highest applicable hierarchy level, avoiding duplicate rows.
-// =============================================================================
 #include "pch.h"
 #include "StructuralIdComparator.h"
 #include "XmlParser.h"

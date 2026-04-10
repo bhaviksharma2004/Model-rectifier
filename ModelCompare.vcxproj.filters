@@ -50,6 +50,15 @@
     <ClCompile Include="src\Dialogs\XmlViewerDlg.cpp">
       <Filter>Source Files\Dialogs</Filter>
     </ClCompile>
+    <ClCompile Include="src\Dialogs\TabSpecIdCompareDlg.cpp">
+      <Filter>Source Files\Dialogs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Dialogs\TabXmlValidationDlg.cpp">
+      <Filter>Source Files\Dialogs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Dialogs\TabSpecValueCompareDlg.cpp">
+      <Filter>Source Files\Dialogs</Filter>
+    </ClCompile>
     <ClCompile Include="src\Engine\XmlParser.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
@@ -88,6 +97,15 @@
       <Filter>Header Files\Dialogs</Filter>
     </ClInclude>
     <ClInclude Include="src\Dialogs\XmlViewerDlg.h">
+      <Filter>Header Files\Dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Dialogs\TabSpecIdCompareDlg.h">
+      <Filter>Header Files\Dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Dialogs\TabXmlValidationDlg.h">
+      <Filter>Header Files\Dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Dialogs\TabSpecValueCompareDlg.h">
       <Filter>Header Files\Dialogs</Filter>
     </ClInclude>
     <ClInclude Include="src\Engine\DiffTypes.h">

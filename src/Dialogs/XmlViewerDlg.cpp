@@ -1,15 +1,3 @@
-// =============================================================================
-// XmlViewerDlg.cpp
-// Production-ready XML viewer. Fixes applied:
-//   (a) Removed rogue yellow highlights — no more search-target highlighting
-//   (b) ClearType font + DWM dark scrollbars (attributes 19 + 20)
-//   (c) Auto-scroll to clicked diff line (centered in viewport)
-//   (d) Deferred deselection — no blue highlight on open
-//   (e) Minimize button fully removed (ModifyStyle + SWP_FRAMECHANGED)
-//   (f) Fixed syntax coloring — \r\n → \n conversion for RichEdit indexing
-//   (g) Deferred loading — dialog appears instantly, content loads after
-//   (h) Scrollbar dark theming on both axes
-// =============================================================================
 #include "pch.h"
 #include "resource.h"
 #include "XmlViewerDlg.h"
@@ -45,8 +33,9 @@ void CXmlViewerDlg::DoDataExchange(CDataExchange* pDX) {
 }
 
 
-void CXmlViewerDlg::SetFile(const std::filesystem::path& xmlPath, const CString& title) {
+void CXmlViewerDlg::SetFile(const std::filesystem::path& xmlPath, const std::filesystem::path& leftPath, const CString& title) {
     m_xmlPath = xmlPath;
+    m_leftPath = leftPath;
     m_title = title;
 }
 
@@ -205,6 +194,49 @@ void CXmlViewerDlg::LoadAndHighlight() {
             fs.close();
         }
 
+        if (!m_missing.empty() && !m_leftPath.empty() && std::filesystem::exists(m_leftPath)) {
+            std::vector<CString> leftLines;
+            std::ifstream lfs(m_leftPath, std::ios::in | std::ios::binary);
+            if (lfs.is_open()) {
+                std::string raw;
+                while (std::getline(lfs, raw)) {
+                    if (!raw.empty() && raw.back() == '\r') raw.pop_back();
+                    leftLines.push_back(CString(CA2W(raw.c_str(), CP_UTF8)));
+                }
+                lfs.close();
+
+                for (const auto& entry : m_missing) {
+                    int leftLn = FindValLine(leftLines, entry.groupId, entry.specId, entry.valId);
+                    if (leftLn >= 0) {
+                        auto snippet = ExtractBlock(leftLines, leftLn);
+                        if (!snippet.empty()) {
+                            int parentStartLn = -1;
+                            std::string targetId = "";
+                            
+                            if (entry.level == ModelCompare::DiffLevel::Val) {
+                                parentStartLn = FindValLine(lines, entry.groupId, entry.specId, "");
+                                targetId = entry.valId;
+                            } else if (entry.level == ModelCompare::DiffLevel::Spec) {
+                                parentStartLn = FindValLine(lines, entry.groupId, "", "");
+                                targetId = entry.specId;
+                            } else {
+                                for (int i = 0; i < (int)lines.size(); i++) {
+                                    if (lines[i].Find(_T("<data")) >= 0) {
+                                        parentStartLn = i; break;
+                                    }
+                                }
+                                targetId = entry.groupId;
+                            }
+                            
+                            if (parentStartLn >= 0 && parentStartLn < (int)lines.size()) {
+                                int sortedInsertLn = GetSortedInsertLine(lines, parentStartLn, entry.level, targetId);
+                                lines.insert(lines.begin() + sortedInsertLn, snippet.begin(), snippet.end());
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         size_t totalChars = 0;
         for (const auto& l : lines) {
@@ -253,7 +285,8 @@ void CXmlViewerDlg::LoadAndHighlight() {
         for (const auto& entry : m_extra) {
             int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
             if (ln >= 0) {
-                HighlightLine(ln, CLR_DIFF_EXTRA_BG);
+                int endLn = FindBlockEnd(lines, ln);
+                HighlightBlock(ln, endLn, CLR_DIFF_EXTRA_BG);
                 if (!m_scrollToKey.empty() && entry.compositeKey == m_scrollToKey && !m_scrollToIsMissing) {
                     scrollToLine = ln;
                 }
@@ -262,9 +295,10 @@ void CXmlViewerDlg::LoadAndHighlight() {
 
 
         for (const auto& entry : m_missing) {
-            int ln = FindValLine(lines, entry.groupId, entry.specId, "");
+            int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
             if (ln >= 0) {
-                HighlightLine(ln, CLR_DIFF_MISSING_BG);
+                int endLn = FindBlockEnd(lines, ln);
+                HighlightBlock(ln, endLn, CLR_DIFF_MISSING_BG);
                 if (!m_scrollToKey.empty() && entry.compositeKey == m_scrollToKey && m_scrollToIsMissing) {
                     scrollToLine = ln;
                 }
@@ -423,12 +457,15 @@ int CXmlViewerDlg::FindValLine(const std::vector<CString>& lines,
 
     bool inGroup = false, inSpec = false;
     int specLine = -1;
+    int groupLine = -1;
 
     for (int i = 0; i < (int)lines.size(); i++) {
         const CString& ln = lines[i];
 
         if (ln.Find(_T("<group")) >= 0 && ln.Find(gidPattern) >= 0) {
             inGroup = true;
+            groupLine = i;
+            if (specId.empty()) return i;
             continue;
         }
         if (inGroup && ln.Find(_T("</group>")) >= 0) {
@@ -452,15 +489,127 @@ int CXmlViewerDlg::FindValLine(const std::vector<CString>& lines,
             if (ln.Find(vidPattern) >= 0) return i;
         }
     }
-    return specLine;
+    if (specLine != -1) return specLine;
+    return groupLine;
 }
 
 
-void CXmlViewerDlg::HighlightLine(int lineIndex, COLORREF bgColor) {
-    int startChar = m_richEdit.LineIndex(lineIndex);
+int CXmlViewerDlg::GetSortedInsertLine(const std::vector<CString>& lines, int parentStartLine, 
+                                       ModelCompare::DiffLevel level, const std::string& targetId) {
+    if (parentStartLine < 0 || parentStartLine >= (int)lines.size()) return parentStartLine;
+    
+    CString parentStartStr = lines[parentStartLine];
+    if (parentStartStr.Find(_T("/>")) >= 0) return parentStartLine + 1;
+
+    int tagStart = parentStartStr.Find(_T('<'));
+    if (tagStart < 0) return parentStartLine + 1;
+
+    int spaceIdx = parentStartStr.Find(_T(' '), tagStart);
+    int closeIdx = parentStartStr.Find(_T('>'), tagStart);
+    int tagEnd = spaceIdx;
+    if (spaceIdx < 0 || (closeIdx >= 0 && closeIdx < spaceIdx)) tagEnd = closeIdx;
+    if (tagEnd <= tagStart + 1) return parentStartLine + 1;
+
+    CString parentTagName = parentStartStr.Mid(tagStart + 1, tagEnd - (tagStart + 1));
+    CString parentClosingTag;
+    parentClosingTag.Format(_T("</%s>"), parentTagName.GetString());
+
+    CString siblingTagName;
+    CString idAttr;
+    if (level == ModelCompare::DiffLevel::Group) { siblingTagName = _T("<group"); idAttr = _T("group_ID=\""); }
+    else if (level == ModelCompare::DiffLevel::Spec) { siblingTagName = _T("<spec"); idAttr = _T("spec_ID=\""); }
+    else { siblingTagName = _T("<val"); idAttr = _T("val_id=\""); }
+
+    long targetVal = 0;
+    try { targetVal = std::stol(targetId); } catch(...) {}
+
+    int depth = 1;
+    for (int i = parentStartLine + 1; i < (int)lines.size(); i++) {
+        CString ln = lines[i];
+
+        
+        CString openPat; openPat.Format(_T("<%s"), parentTagName.GetString());
+        if (ln.Find(openPat) >= 0 && ln.Find(_T("/>")) < 0) depth++;
+        if (ln.Find(parentClosingTag) >= 0) {
+            depth--;
+            if (depth == 0) return i; 
+        }
+
+        
+        if (depth == 1 && ln.Find(siblingTagName) >= 0) {
+            int attrStart = ln.Find(idAttr);
+            if (attrStart >= 0) {
+                attrStart += idAttr.GetLength();
+                int attrEnd = ln.Find(_T('"'), attrStart);
+                if (attrEnd > attrStart) {
+                    CString idStr = ln.Mid(attrStart, attrEnd - attrStart);
+                    long sibVal = 0;
+                    try { sibVal = std::stol(std::wstring(idStr.GetString())); } catch(...) {}
+                    
+                    if (sibVal > targetVal) {
+                        return i; 
+                    }
+                }
+            }
+        }
+    }
+    return parentStartLine + 1;
+}
+
+
+int CXmlViewerDlg::FindBlockEnd(const std::vector<CString>& lines, int startLine) {
+    if (startLine < 0 || startLine >= (int)lines.size()) return startLine;
+
+    CString firstLine = lines[startLine];
+    if (firstLine.Find(_T("/>")) >= 0) return startLine;
+
+    int tagStart = firstLine.Find(_T('<'));
+    if (tagStart < 0) return startLine;
+
+    int spaceIdx = firstLine.Find(_T(' '), tagStart);
+    int closeIdx = firstLine.Find(_T('>'), tagStart);
+    int tagEnd = spaceIdx;
+    if (spaceIdx < 0 || (closeIdx >= 0 && closeIdx < spaceIdx)) tagEnd = closeIdx;
+    if (tagEnd <= tagStart + 1) return startLine;
+
+    CString tagName = firstLine.Mid(tagStart + 1, tagEnd - (tagStart + 1));
+    CString closingTag;
+    closingTag.Format(_T("</%s>"), tagName.GetString());
+
+    int depth = 1;
+    for (int i = startLine + 1; i < (int)lines.size(); i++) {
+        CString ln = lines[i];
+        CString openPat; openPat.Format(_T("<%s"), tagName.GetString());
+        if (ln.Find(openPat) >= 0 && ln.Find(_T("/>")) < 0) depth++;
+        if (ln.Find(closingTag) >= 0) {
+            depth--;
+            if (depth == 0) return i;
+        }
+    }
+    return startLine;
+}
+
+std::vector<CString> CXmlViewerDlg::ExtractBlock(const std::vector<CString>& lines, int startLine) {
+    std::vector<CString> block;
+    int endLine = FindBlockEnd(lines, startLine);
+    if (startLine >= 0 && endLine >= startLine && endLine < (int)lines.size()) {
+        for (int i = startLine; i <= endLine; i++) {
+            block.push_back(lines[i]);
+        }
+    }
+    return block;
+}
+
+void CXmlViewerDlg::HighlightBlock(int startLine, int endLine, COLORREF bgColor) {
+    if (startLine < 0 || endLine < startLine) return;
+    
+    int startChar = m_richEdit.LineIndex(startLine);
     if (startChar < 0) return;
-    int lineLen = m_richEdit.LineLength(startChar);
-    m_richEdit.SetSel(startChar, startChar + lineLen);
+    
+    int lastLineStart = m_richEdit.LineIndex(endLine);
+    int endChar = lastLineStart + m_richEdit.LineLength(lastLineStart);
+    
+    m_richEdit.SetSel(startChar, endChar);
 
     CHARFORMAT2 cf = {};
     cf.cbSize = sizeof(cf);

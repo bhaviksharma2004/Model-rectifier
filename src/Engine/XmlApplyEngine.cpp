@@ -1,16 +1,3 @@
-// =============================================================================
-// XmlApplyEngine.cpp
-// Surgically modifies Right model XML to match Left model's ID structure.
-//
-// Level-aware operations with sorted insertion:
-//   - Group: Deep-clone/remove entire <group> subtree
-//   - Spec:  Deep-clone/remove entire <spec> subtree within matching group
-//   - Val:   Deep-clone/remove single <val> node within matching spec
-//
-// Insertion order:
-//   New elements are placed at the correct ascending ID position among
-//   siblings, comparing numeric IDs to maintain sorted order.
-// =============================================================================
 #include "pch.h"
 #include "XmlApplyEngine.h"
 #include "tinyxml2/tinyxml2.h"

@@ -6,6 +6,9 @@
 // Dialog IDs
 #define IDD_MODELCOMPARE_DIALOG         100
 #define IDD_XMLVIEWER_DIALOG            101
+#define IDD_TAB_SPEC_ID_COMPARE         102
+#define IDD_TAB_XML_VALIDATION          103
+#define IDD_TAB_SPEC_VALUE_COMPARE      104
 
 // Top Section — Model Selection
 #define IDC_STATIC_LEFT_LABEL           1000
@@ -29,6 +32,8 @@
 #define IDC_BTN_VIEW_XML                1012
 #define IDC_LIST_MISMATCHES             1013
 #define IDC_BTN_FILE_ACTION             1014
+#define IDC_BTN_APPLY_SELECTION         1015
+#define IDC_TAB_MAIN                    1016
 
 // XML Viewer Dialog
 #define IDC_RICHEDIT_XML                1100

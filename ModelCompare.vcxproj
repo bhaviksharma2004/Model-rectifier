@@ -141,6 +141,9 @@
     <!-- Dialogs -->
     <ClCompile Include="src\Dialogs\MainDlg.cpp" />
     <ClCompile Include="src\Dialogs\XmlViewerDlg.cpp" />
+    <ClCompile Include="src\Dialogs\TabSpecIdCompareDlg.cpp" />
+    <ClCompile Include="src\Dialogs\TabXmlValidationDlg.cpp" />
+    <ClCompile Include="src\Dialogs\TabSpecValueCompareDlg.cpp" />
 
     <!-- Engine (Pure C++17 — no MFC dependency in headers) -->
     <ClCompile Include="src\Engine\XmlParser.cpp" />
@@ -166,6 +169,9 @@
     <ClInclude Include="src\App\ModelCompareApp.h" />
     <ClInclude Include="src\Dialogs\MainDlg.h" />
     <ClInclude Include="src\Dialogs\XmlViewerDlg.h" />
+    <ClInclude Include="src\Dialogs\TabSpecIdCompareDlg.h" />
+    <ClInclude Include="src\Dialogs\TabXmlValidationDlg.h" />
+    <ClInclude Include="src\Dialogs\TabSpecValueCompareDlg.h" />
     <ClInclude Include="src\Engine\DiffTypes.h" />
     <ClInclude Include="src\Engine\IComparisonStrategy.h" />
     <ClInclude Include="src\Engine\XmlParser.h" />

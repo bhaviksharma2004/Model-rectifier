@@ -27,7 +27,7 @@ public:
     CXmlViewerDlg(CWnd* pParent = nullptr);
     enum { IDD = IDD_XMLVIEWER_DIALOG };
 
-    void SetFile(const std::filesystem::path& xmlPath, const CString& title);
+    void SetFile(const std::filesystem::path& xmlPath, const std::filesystem::path& leftPath, const CString& title);
     void SetDiffs(
         const std::vector<ModelCompare::KeyDiffEntry>& missing,
         const std::vector<ModelCompare::KeyDiffEntry>& extra
@@ -53,6 +53,7 @@ private:
     CFont         m_codeFont;
     CBrush        m_brushDarkBg;
     std::filesystem::path m_xmlPath;
+    std::filesystem::path m_leftPath;
     CString m_title;
 
 
@@ -85,7 +86,14 @@ private:
                     const std::string& groupId,
                     const std::string& specId,
                     const std::string& valId);
-    void HighlightLine(int lineIndex, COLORREF bgColor);
+    
+    int FindBlockEnd(const std::vector<CString>& lines, int startLine);
+    std::vector<CString> ExtractBlock(const std::vector<CString>& lines, int startLine);
+    void HighlightBlock(int startLine, int endLine, COLORREF bgColor);
+    
+    int GetSortedInsertLine(const std::vector<CString>& lines, int parentStartLine, 
+                            ModelCompare::DiffLevel level, const std::string& targetId);
+    
     void ScrollToLine(int lineIndex);
 
 
