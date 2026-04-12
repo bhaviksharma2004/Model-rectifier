@@ -55,6 +55,24 @@ void CXmlViewerDlg::SetSearchTarget(const CString& targetSearch) {
     m_targetSearch = targetSearch;
 }
 
+void CXmlViewerDlg::SetCachedContent(const CString& fullText,
+                                     const std::vector<CString>& lines,
+                                     const CString& title) {
+    m_useCachedContent = true;
+    m_cachedFullText = fullText;
+    m_cachedLines = lines;
+    m_title = title;
+}
+
+void CXmlViewerDlg::SetValidationHighlights(
+    const std::vector<ValidationHighlight>& highlights) {
+    m_validationHighlights = highlights;
+}
+
+void CXmlViewerDlg::SetScrollToLine(int lineNumber) {
+    m_scrollToLineNumber = lineNumber;
+}
+
 
 BOOL CXmlViewerDlg::OnInitDialog() {
     CDialogEx::OnInitDialog();
@@ -173,87 +191,93 @@ void CXmlViewerDlg::OnMouseHWheel(UINT nFlags, short zDelta, CPoint pt) {
 
 void CXmlViewerDlg::LoadAndHighlight() {
     try {
-        std::ifstream fs(m_xmlPath, std::ios::in | std::ios::binary);
-        if (!fs.is_open()) {
-            ShowError(_T("File Open Error"),
-                CString(_T("Could not open file:\n")) + CString(m_xmlPath.wstring().c_str()));
-            m_richEdit.SetWindowText(_T("Error: Could not open file."));
-            return;
-        }
-
-
         std::vector<CString> lines;
-        {
-            std::string raw;
-            while (std::getline(fs, raw)) {
-                if (!raw.empty() && raw.back() == '\r') {
-                    raw.pop_back();
-                }
-                lines.push_back(CString(CA2W(raw.c_str(), CP_UTF8)));
+        CString fullText;
+
+        if (m_useCachedContent) {
+            // ── Cached content path: no disk I/O ──
+            lines = m_cachedLines;
+            fullText = m_cachedFullText;
+        } else {
+            // ── File-based path: read from disk (existing behavior) ──
+            std::ifstream fs(m_xmlPath, std::ios::in | std::ios::binary);
+            if (!fs.is_open()) {
+                ShowError(_T("File Open Error"),
+                    CString(_T("Could not open file:\n")) + CString(m_xmlPath.wstring().c_str()));
+                m_richEdit.SetWindowText(_T("Error: Could not open file."));
+                return;
             }
-            fs.close();
-        }
 
-        if (!m_missing.empty() && !m_leftPath.empty() && std::filesystem::exists(m_leftPath)) {
-            std::vector<CString> leftLines;
-            std::ifstream lfs(m_leftPath, std::ios::in | std::ios::binary);
-            if (lfs.is_open()) {
+            {
                 std::string raw;
-                while (std::getline(lfs, raw)) {
-                    if (!raw.empty() && raw.back() == '\r') raw.pop_back();
-                    leftLines.push_back(CString(CA2W(raw.c_str(), CP_UTF8)));
+                while (std::getline(fs, raw)) {
+                    if (!raw.empty() && raw.back() == '\r') {
+                        raw.pop_back();
+                    }
+                    lines.push_back(CString(CA2W(raw.c_str(), CP_UTF8)));
                 }
-                lfs.close();
+                fs.close();
+            }
 
-                for (const auto& entry : m_missing) {
-                    int leftLn = FindValLine(leftLines, entry.groupId, entry.specId, entry.valId);
-                    if (leftLn >= 0) {
-                        auto snippet = ExtractBlock(leftLines, leftLn);
-                        if (!snippet.empty()) {
-                            int parentStartLn = -1;
-                            std::string targetId = "";
-                            
-                            if (entry.level == ModelCompare::DiffLevel::Val) {
-                                parentStartLn = FindValLine(lines, entry.groupId, entry.specId, "");
-                                targetId = entry.valId;
-                            } else if (entry.level == ModelCompare::DiffLevel::Spec) {
-                                parentStartLn = FindValLine(lines, entry.groupId, "", "");
-                                targetId = entry.specId;
-                            } else {
-                                for (int i = 0; i < (int)lines.size(); i++) {
-                                    if (lines[i].Find(_T("<data")) >= 0) {
-                                        parentStartLn = i; break;
+            if (!m_missing.empty() && !m_leftPath.empty() && std::filesystem::exists(m_leftPath)) {
+                std::vector<CString> leftLines;
+                std::ifstream lfs(m_leftPath, std::ios::in | std::ios::binary);
+                if (lfs.is_open()) {
+                    std::string raw;
+                    while (std::getline(lfs, raw)) {
+                        if (!raw.empty() && raw.back() == '\r') raw.pop_back();
+                        leftLines.push_back(CString(CA2W(raw.c_str(), CP_UTF8)));
+                    }
+                    lfs.close();
+
+                    for (const auto& entry : m_missing) {
+                        int leftLn = FindValLine(leftLines, entry.groupId, entry.specId, entry.valId);
+                        if (leftLn >= 0) {
+                            auto snippet = ExtractBlock(leftLines, leftLn);
+                            if (!snippet.empty()) {
+                                int parentStartLn = -1;
+                                std::string targetId = "";
+                                
+                                if (entry.level == ModelCompare::DiffLevel::Val) {
+                                    parentStartLn = FindValLine(lines, entry.groupId, entry.specId, "");
+                                    targetId = entry.valId;
+                                } else if (entry.level == ModelCompare::DiffLevel::Spec) {
+                                    parentStartLn = FindValLine(lines, entry.groupId, "", "");
+                                    targetId = entry.specId;
+                                } else {
+                                    for (int i = 0; i < (int)lines.size(); i++) {
+                                        if (lines[i].Find(_T("<data")) >= 0) {
+                                            parentStartLn = i; break;
+                                        }
                                     }
+                                    targetId = entry.groupId;
                                 }
-                                targetId = entry.groupId;
-                            }
-                            
-                            if (parentStartLn >= 0 && parentStartLn < (int)lines.size()) {
-                                int sortedInsertLn = GetSortedInsertLine(lines, parentStartLn, entry.level, targetId);
-                                lines.insert(lines.begin() + sortedInsertLn, snippet.begin(), snippet.end());
+                                
+                                if (parentStartLn >= 0 && parentStartLn < (int)lines.size()) {
+                                    int sortedInsertLn = GetSortedInsertLine(lines, parentStartLn, entry.level, targetId);
+                                    lines.insert(lines.begin() + sortedInsertLn, snippet.begin(), snippet.end());
+                                }
                             }
                         }
                     }
                 }
             }
+
+            // Build full text
+            size_t totalChars = 0;
+            for (const auto& l : lines) {
+                totalChars += (size_t)l.GetLength() + 2;
+            }
+            fullText.Preallocate((int)totalChars + 1);
+            for (const auto& l : lines) {
+                fullText.Append(l);
+                fullText.Append(_T("\r\n"));
+            }
         }
 
-        size_t totalChars = 0;
-        for (const auto& l : lines) {
-            totalChars += (size_t)l.GetLength() + 2;
-        }
-
-        CString fullText;
-        fullText.Preallocate((int)totalChars + 1);
-        for (const auto& l : lines) {
-            fullText.Append(l);
-            fullText.Append(_T("\r\n"));
-        }
-
-
+        // ── Common rendering path ──
         m_richEdit.SetRedraw(FALSE);
         m_richEdit.SetWindowText(fullText);
-
 
         m_richEdit.SetSel(0, -1);
         CHARFORMAT2 cfAll = {};
@@ -264,12 +288,10 @@ void CXmlViewerDlg::LoadAndHighlight() {
         cfAll.dwEffects = 0;
         m_richEdit.SetSelectionCharFormat(cfAll);
 
-
+        // Syntax highlighting
         {
             CString reText;
             m_richEdit.GetWindowText(reText);
-
-
             reText.Replace(_T("\r\n"), _T("\n"));
 
             std::vector<ColorRange> syntaxRanges;
@@ -278,29 +300,37 @@ void CXmlViewerDlg::LoadAndHighlight() {
             ApplyColorRanges(syntaxRanges);
         }
 
-
         int scrollToLine = -1;
 
-
-        for (const auto& entry : m_extra) {
-            int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
-            if (ln >= 0) {
-                int endLn = FindBlockEnd(lines, ln);
-                HighlightBlock(ln, endLn, CLR_DIFF_EXTRA_BG);
-                if (!m_scrollToKey.empty() && entry.compositeKey == m_scrollToKey && !m_scrollToIsMissing) {
-                    scrollToLine = ln;
+        if (m_useCachedContent) {
+            // ── Validation highlight path ──
+            for (const auto& vh : m_validationHighlights) {
+                if (vh.lineNumber >= 0 && vh.lineNumber < (int)lines.size()) {
+                    HighlightBlock(vh.lineNumber, vh.lineNumber, vh.bgColor);
                 }
             }
-        }
+            scrollToLine = m_scrollToLineNumber;
+        } else {
+            // ── Diff highlight path (existing behavior) ──
+            for (const auto& entry : m_extra) {
+                int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
+                if (ln >= 0) {
+                    int endLn = FindBlockEnd(lines, ln);
+                    HighlightBlock(ln, endLn, CLR_DIFF_EXTRA_BG);
+                    if (!m_scrollToKey.empty() && entry.compositeKey == m_scrollToKey && !m_scrollToIsMissing) {
+                        scrollToLine = ln;
+                    }
+                }
+            }
 
-
-        for (const auto& entry : m_missing) {
-            int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
-            if (ln >= 0) {
-                int endLn = FindBlockEnd(lines, ln);
-                HighlightBlock(ln, endLn, CLR_DIFF_MISSING_BG);
-                if (!m_scrollToKey.empty() && entry.compositeKey == m_scrollToKey && m_scrollToIsMissing) {
-                    scrollToLine = ln;
+            for (const auto& entry : m_missing) {
+                int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
+                if (ln >= 0) {
+                    int endLn = FindBlockEnd(lines, ln);
+                    HighlightBlock(ln, endLn, CLR_DIFF_MISSING_BG);
+                    if (!m_scrollToKey.empty() && entry.compositeKey == m_scrollToKey && m_scrollToIsMissing) {
+                        scrollToLine = ln;
+                    }
                 }
             }
         }
@@ -310,11 +340,9 @@ void CXmlViewerDlg::LoadAndHighlight() {
         m_richEdit.Invalidate();
         m_richEdit.UpdateWindow();
 
-
         if (scrollToLine >= 0) {
             ScrollToLine(scrollToLine);
-        } else if (!m_extra.empty() || !m_missing.empty()) {
-
+        } else if (!m_useCachedContent && (!m_extra.empty() || !m_missing.empty())) {
             int firstDiff = -1;
             if (!m_extra.empty()) {
                 firstDiff = FindValLine(lines, m_extra[0].groupId, m_extra[0].specId, m_extra[0].valId);

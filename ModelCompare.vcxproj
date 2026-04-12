@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-
   <!-- ===================================================================== -->
   <!-- Platform Configurations                                                -->
   <!-- ===================================================================== -->
@@ -14,7 +13,6 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-
   <!-- ===================================================================== -->
   <!-- Global Properties                                                      -->
   <!-- ===================================================================== -->
@@ -25,9 +23,7 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <Keyword>MFCProj</Keyword>
   </PropertyGroup>
-
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-
   <!-- ===================================================================== -->
   <!-- Configuration Properties                                               -->
   <!-- ===================================================================== -->
@@ -35,31 +31,24 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <UseDebugLibraries>true</UseDebugLibraries>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
-
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props"
-            Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')"
-            Label="LocalAppDataPlatform" />
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props"
-            Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')"
-            Label="LocalAppDataPlatform" />
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-
   <!-- ===================================================================== -->
   <!-- Output Directories                                                     -->
   <!-- ===================================================================== -->
@@ -71,7 +60,6 @@
     <OutDir>$(ProjectDir)bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)obj\$(Configuration)\</IntDir>
   </PropertyGroup>
-
   <!-- ===================================================================== -->
   <!-- Compiler Settings — Debug                                              -->
   <!-- ===================================================================== -->
@@ -96,7 +84,6 @@
       <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
-
   <!-- ===================================================================== -->
   <!-- Compiler Settings — Release                                            -->
   <!-- ===================================================================== -->
@@ -124,7 +111,6 @@
       <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
-
   <!-- ===================================================================== -->
   <!-- Source Files                                                           -->
   <!-- ===================================================================== -->
@@ -134,30 +120,26 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-
     <!-- Application -->
     <ClCompile Include="src\App\ModelCompareApp.cpp" />
-
     <!-- Dialogs -->
     <ClCompile Include="src\Dialogs\MainDlg.cpp" />
     <ClCompile Include="src\Dialogs\XmlViewerDlg.cpp" />
     <ClCompile Include="src\Dialogs\TabSpecIdCompareDlg.cpp" />
     <ClCompile Include="src\Dialogs\TabXmlValidationDlg.cpp" />
     <ClCompile Include="src\Dialogs\TabSpecValueCompareDlg.cpp" />
-
     <!-- Engine (Pure C++17 — no MFC dependency in headers) -->
     <ClCompile Include="src\Engine\XmlParser.cpp" />
     <ClCompile Include="src\Engine\StructuralIdComparator.cpp" />
     <ClCompile Include="src\Engine\CompareEngine.cpp" />
     <ClCompile Include="src\Engine\XmlApplyEngine.cpp" />
-
+    <ClCompile Include="src\Engine\XmlValidationEngine.cpp" />
     <!-- Third-party: TinyXML2 (no precompiled header) -->
     <ClCompile Include="thirdparty\tinyxml2\tinyxml2.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
-
   <!-- ===================================================================== -->
   <!-- Header Files                                                           -->
   <!-- ===================================================================== -->
@@ -178,16 +160,14 @@
     <ClInclude Include="src\Engine\StructuralIdComparator.h" />
     <ClInclude Include="src\Engine\CompareEngine.h" />
     <ClInclude Include="src\Engine\XmlApplyEngine.h" />
+    <ClInclude Include="src\Engine\XmlValidationEngine.h" />
     <ClInclude Include="thirdparty\tinyxml2\tinyxml2.h" />
   </ItemGroup>
-
   <!-- ===================================================================== -->
   <!-- Resource Files                                                         -->
   <!-- ===================================================================== -->
   <ItemGroup>
     <ResourceCompile Include="src\ModelCompare.rc" />
   </ItemGroup>
-
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-
 </Project>

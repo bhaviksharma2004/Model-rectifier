@@ -71,6 +71,9 @@
     <ClCompile Include="src\Engine\XmlApplyEngine.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\Engine\XmlValidationEngine.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
     <ClCompile Include="thirdparty\tinyxml2\tinyxml2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -124,6 +127,9 @@
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\Engine\XmlApplyEngine.h">
+      <Filter>Header Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\XmlValidationEngine.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
     <ClInclude Include="thirdparty\tinyxml2\tinyxml2.h">

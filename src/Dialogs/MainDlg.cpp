@@ -3,6 +3,7 @@
 #include "MainDlg.h"
 #include "Engine/CompareEngine.h"
 #include "Engine/StructuralIdComparator.h"
+#include "Engine/XmlValidationEngine.h"
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
 
@@ -27,6 +28,7 @@ BEGIN_MESSAGE_MAP(CMainDlg, CDialogEx)
     ON_WM_CLOSE()
     ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CMainDlg::OnTcnSelchangeTabMain)
     ON_MESSAGE(WM_COMPARE_COMPLETE, &CMainDlg::OnCompareComplete)
+    ON_MESSAGE(WM_VALIDATE_COMPLETE, &CMainDlg::OnValidateComplete)
 END_MESSAGE_MAP()
 
 CMainDlg::CMainDlg(CWnd* pParent)
@@ -97,6 +99,12 @@ void CMainDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult) {
     m_tabSpecId.ShowWindow(sel == 0 ? SW_SHOW : SW_HIDE);
     m_tabXmlVal.ShowWindow(sel == 1 ? SW_SHOW : SW_HIDE);
     m_tabSpecVal.ShowWindow(sel == 2 ? SW_SHOW : SW_HIDE);
+
+    // Dynamic button text based on active tab
+    if (sel == 1)
+        m_btnCompare.SetWindowText(_T("Validate\nModels"));
+    else
+        m_btnCompare.SetWindowText(_T("Compare\nModels"));
     
     CRect rcClient;
     GetClientRect(&rcClient);
@@ -134,10 +142,18 @@ void CMainDlg::OnBnClickedCompare() {
     }
 
     EnableCompareUI(false);
-    UpdateSummary(_T("Comparing..."));
-    m_tabSpecId.SetReport(nullptr);
 
-    RunCompare();
+    int activeTab = m_tabMain.GetCurSel();
+    if (activeTab == 1) {
+        // XML Validation tab
+        UpdateSummary(_T("Validating..."));
+        RunValidation();
+    } else {
+        // Compare tabs
+        UpdateSummary(_T("Comparing..."));
+        m_tabSpecId.SetReport(nullptr);
+        RunCompare();
+    }
 }
 
 void CMainDlg::RunCompare() {
@@ -166,6 +182,43 @@ LRESULT CMainDlg::OnCompareComplete(WPARAM, LPARAM lParam) {
     
     m_tabSpecId.SetReport(m_report);
 
+    EnableCompareUI(true);
+    return 0;
+}
+
+void CMainDlg::RunValidation() {
+    CString lp, rp;
+    m_editLeftPath.GetWindowText(lp);
+    m_editRightPath.GetWindowText(rp);
+    HWND hWnd = GetSafeHwnd();
+
+    std::thread([lw = std::wstring((LPCWSTR)lp),
+                 rw = std::wstring((LPCWSTR)rp), hWnd]() {
+        auto* report = new ModelCompare::ValidationReport(
+            ModelCompare::XmlValidationEngine::ValidateModels(
+                std::filesystem::path(lw),
+                std::filesystem::path(rw)));
+        ::PostMessage(hWnd, WM_VALIDATE_COMPLETE, 0, (LPARAM)report);
+    }).detach();
+}
+
+LRESULT CMainDlg::OnValidateComplete(WPARAM, LPARAM lParam) {
+    m_validationReport.reset(
+        reinterpret_cast<ModelCompare::ValidationReport*>(lParam));
+
+    size_t totalIssues = m_validationReport->leftReport.totalIssues
+                       + m_validationReport->rightReport.totalIssues;
+    size_t totalFilesWithIssues = m_validationReport->leftReport.totalFilesWithIssues
+                                + m_validationReport->rightReport.totalFilesWithIssues;
+    size_t totalScanned = m_validationReport->leftReport.totalFilesScanned
+                        + m_validationReport->rightReport.totalFilesScanned;
+
+    CString s;
+    s.Format(_T("%zu issue(s) found  |  %zu file(s) with issues  |  %zu file(s) scanned"),
+        totalIssues, totalFilesWithIssues, totalScanned);
+    UpdateSummary(s);
+
+    m_tabXmlVal.SetValidationReport(m_validationReport);
     EnableCompareUI(true);
     return 0;
 }

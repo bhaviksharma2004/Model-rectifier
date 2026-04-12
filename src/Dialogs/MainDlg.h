@@ -15,6 +15,7 @@
 #include <vector>
 
 #define WM_COMPARE_COMPLETE  (WM_USER + 100)
+#define WM_VALIDATE_COMPLETE (WM_USER + 101)
 
 
 class CMainDlg : public CDialogEx {
@@ -41,6 +42,7 @@ protected:
     afx_msg void OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct);
 
     afx_msg LRESULT OnCompareComplete(WPARAM wParam, LPARAM lParam);
+    afx_msg LRESULT OnValidateComplete(WPARAM wParam, LPARAM lParam);
     afx_msg void OnClose();
 
     DECLARE_MESSAGE_MAP()
@@ -60,12 +62,14 @@ private:
     CTabSpecValueCompareDlg m_tabSpecVal;
 
     std::shared_ptr<ModelCompare::ModelDiffReport> m_report;
+    std::shared_ptr<ModelCompare::ValidationReport> m_validationReport;
 
     CString BrowseForFolder(const CString& title);
     void RepositionControls(int cx, int cy);
     void EnableCompareUI(bool enable);
     void UpdateSummary(const CString& text);
     void RunCompare();
+    void RunValidation();
 
     CFont  m_uiFont;
     CFont  m_headerFont;

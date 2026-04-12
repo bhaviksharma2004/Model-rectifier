@@ -22,11 +22,18 @@ struct ColorRange {
     COLORREF color;
 };
 
+// Validation highlight — maps a line number to a background color
+struct ValidationHighlight {
+    int lineNumber;     // 0-based line index
+    COLORREF bgColor;
+};
+
 class CXmlViewerDlg : public CDialogEx {
 public:
     CXmlViewerDlg(CWnd* pParent = nullptr);
     enum { IDD = IDD_XMLVIEWER_DIALOG };
 
+    // ── Existing API (used by TabSpecIdCompareDlg) ──
     void SetFile(const std::filesystem::path& xmlPath, const std::filesystem::path& leftPath, const CString& title);
     void SetDiffs(
         const std::vector<ModelCompare::KeyDiffEntry>& missing,
@@ -34,6 +41,13 @@ public:
     );
     void SetScrollToKey(const std::string& compositeKey, bool isMissing);
     void SetSearchTarget(const CString& targetSearch);
+
+    // ── New API for validation tab (cached content, no disk I/O) ──
+    void SetCachedContent(const CString& fullText,
+                          const std::vector<CString>& lines,
+                          const CString& title);
+    void SetValidationHighlights(const std::vector<ValidationHighlight>& highlights);
+    void SetScrollToLine(int lineNumber);
 
 protected:
     virtual void DoDataExchange(CDataExchange* pDX) override;
@@ -62,6 +76,13 @@ private:
     std::string m_scrollToKey;
     bool m_scrollToIsMissing = false;
     CString m_targetSearch;
+
+    // ── Cached content for validation tab (no disk I/O path) ──
+    bool m_useCachedContent = false;
+    CString m_cachedFullText;
+    std::vector<CString> m_cachedLines;
+    std::vector<ValidationHighlight> m_validationHighlights;
+    int m_scrollToLineNumber = -1;
 
     // Dark mode color constants
     static constexpr COLORREF CLR_BG_DARK    = RGB(30, 30, 30);    // #1E1E1E
