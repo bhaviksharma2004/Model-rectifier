@@ -195,11 +195,11 @@ void CXmlViewerDlg::LoadAndHighlight() {
         CString fullText;
 
         if (m_useCachedContent) {
-            // ── Cached content path: no disk I/O ──
+            
             lines = m_cachedLines;
             fullText = m_cachedFullText;
         } else {
-            // ── File-based path: read from disk (existing behavior) ──
+            
             std::ifstream fs(m_xmlPath, std::ios::in | std::ios::binary);
             if (!fs.is_open()) {
                 ShowError(_T("File Open Error"),
@@ -263,7 +263,7 @@ void CXmlViewerDlg::LoadAndHighlight() {
                 }
             }
 
-            // Build full text
+            
             size_t totalChars = 0;
             for (const auto& l : lines) {
                 totalChars += (size_t)l.GetLength() + 2;
@@ -275,7 +275,7 @@ void CXmlViewerDlg::LoadAndHighlight() {
             }
         }
 
-        // ── Common rendering path ──
+        
         m_richEdit.SetRedraw(FALSE);
         m_richEdit.SetWindowText(fullText);
 
@@ -288,7 +288,7 @@ void CXmlViewerDlg::LoadAndHighlight() {
         cfAll.dwEffects = 0;
         m_richEdit.SetSelectionCharFormat(cfAll);
 
-        // Syntax highlighting
+        
         {
             CString reText;
             m_richEdit.GetWindowText(reText);
@@ -303,7 +303,7 @@ void CXmlViewerDlg::LoadAndHighlight() {
         int scrollToLine = -1;
 
         if (m_useCachedContent) {
-            // ── Validation highlight path ──
+            
             for (const auto& vh : m_validationHighlights) {
                 if (vh.lineNumber >= 0 && vh.lineNumber < (int)lines.size()) {
                     HighlightBlock(vh.lineNumber, vh.lineNumber, vh.bgColor);
@@ -311,7 +311,7 @@ void CXmlViewerDlg::LoadAndHighlight() {
             }
             scrollToLine = m_scrollToLineNumber;
         } else {
-            // ── Diff highlight path (existing behavior) ──
+            
             for (const auto& entry : m_extra) {
                 int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
                 if (ln >= 0) {

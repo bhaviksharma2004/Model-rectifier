@@ -1,18 +1,18 @@
-// =============================================================================
-// CompareEngine.h
-// Orchestrates the comparison of two model directories.
-//
-// Responsibilities:
-//   - Recursively enumerates .xml files in both model directories
-//   - Matches files by their relative path
-//   - Detects added/deleted files
-//   - Delegates file-level comparison to the active IComparisonStrategy
-//   - Aggregates results into a ModelDiffReport
-//
-// Thread safety:
-//   CompareModels() is designed to run on a background thread.
-//   It does NOT access any MFC objects.
-// =============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #pragma once
 
 #include "DiffTypes.h"

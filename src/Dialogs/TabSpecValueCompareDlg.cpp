@@ -9,7 +9,7 @@ END_MESSAGE_MAP()
 
 CTabSpecValueCompareDlg::CTabSpecValueCompareDlg(CWnd* pParent)
     : CDialogEx(IDD_TAB_SPEC_VALUE_COMPARE, pParent) {
-    m_brushBg.CreateSolidBrush(RGB(243, 243, 248)); // Match CLR_DIALOG_BG
+    m_brushBg.CreateSolidBrush(RGB(243, 243, 248)); 
 }
 
 BOOL CTabSpecValueCompareDlg::OnInitDialog() {

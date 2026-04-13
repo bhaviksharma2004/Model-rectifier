@@ -1,22 +1,3 @@
-// =============================================================================
-// DiffTypes.h
-// Core data structures for the Model Compare engine.
-//
-// Design:
-//   - DiffLevel indicates the hierarchy tier at which a diff was detected.
-//   - XmlNodeInfo captures the FULL hierarchy context of each <val> node,
-//     including all attributes. This enables future comparison strategies
-//     to compare values, names, or any other attribute without parser changes.
-//   - KeyDiffEntry represents a single structural mismatch at any hierarchy
-//     level (group, spec, or val).
-//   - FileDiffResult represents the comparison outcome for a single XML file.
-//   - ModelDiffReport aggregates results across all files in two model dirs.
-//
-// Extensibility:
-//   To add new comparison criteria, create a new IComparisonStrategy
-//   implementation. The data structures here are intentionally rich enough
-//   to support value-based, attribute-based, or any other comparison mode.
-// =============================================================================
 #pragma once
 
 #include <string>

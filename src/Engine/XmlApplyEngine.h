@@ -1,15 +1,3 @@
-// =============================================================================
-// XmlApplyEngine.h
-// Engine for surgically modifying Right model XML files to match Left structure.
-//
-// Level-aware operations:
-//   AddMissing  — Copies a group, spec, or val from Left into Right.
-//   RemoveExtra — Deletes a group, spec, or val from Right.
-//
-// Insertion order:
-//   Added elements are inserted at the correct ascending ID position
-//   among their siblings (sorted by group_ID, spec_ID, or val_id).
-// =============================================================================
 #pragma once
 
 #include "DiffTypes.h"

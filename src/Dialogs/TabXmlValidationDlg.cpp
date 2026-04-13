@@ -1,7 +1,7 @@
-// =============================================================================
-// TabXmlValidationDlg.cpp
-// Read-only diagnostic tab — full implementation.
-// =============================================================================
+
+
+
+
 #include "pch.h"
 #include "TabXmlValidationDlg.h"
 #include "XmlViewerDlg.h"
@@ -22,16 +22,16 @@ static CString ExtractEnglishName(const std::string& fullName) {
     size_t pos = fullName.find("$$");
     std::string eng = (pos != std::string::npos) ? fullName.substr(0, pos) : fullName;
     
-    // Trim trailing whitespace
+    
     while (!eng.empty() && std::isspace(static_cast<unsigned char>(eng.back()))) {
         eng.pop_back();
     }
     return CString(eng.c_str());
 }
 
-// =============================================================================
-// Message map
-// =============================================================================
+
+
+
 
 BEGIN_MESSAGE_MAP(CTabXmlValidationDlg, CDialogEx)
     ON_WM_SIZE()
@@ -53,18 +53,18 @@ BEGIN_MESSAGE_MAP(CTabXmlValidationDlg, CDialogEx)
     ON_NOTIFY(LVN_GETINFOTIP, IDC_LIST_VALFILES_RIGHT, &CTabXmlValidationDlg::OnRightFileListGetInfoTip)
 END_MESSAGE_MAP()
 
-// =============================================================================
-// Construction / Destruction
-// =============================================================================
+
+
+
 
 CTabXmlValidationDlg::CTabXmlValidationDlg(CWnd* pParent)
     : CDialogEx(IDD_TAB_XML_VALIDATION, pParent) {}
 
 CTabXmlValidationDlg::~CTabXmlValidationDlg() {}
 
-// =============================================================================
-// Data exchange
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::DoDataExchange(CDataExchange* pDX) {
     CDialogEx::DoDataExchange(pDX);
@@ -78,14 +78,14 @@ void CTabXmlValidationDlg::DoDataExchange(CDataExchange* pDX) {
     DDX_Control(pDX, IDC_BTN_VAL_CORRUPT_INFO,          m_btnCorruptInfo);
 }
 
-// =============================================================================
-// Initialization
-// =============================================================================
+
+
+
 
 BOOL CTabXmlValidationDlg::OnInitDialog() {
     CDialogEx::OnInitDialog();
 
-    // ── Fonts ──
+    
     LOGFONT lf = {};
     SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(LOGFONT), &lf, 0);
     wcscpy_s(lf.lfFaceName, _T("Segoe UI"));
@@ -98,7 +98,7 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     lfHeader.lfWeight = FW_SEMIBOLD;
     m_headerFont.CreateFontIndirect(&lfHeader);
 
-    // ── Apply fonts ──
+    
     m_listLeftFiles.SetFont(&m_uiFont);
     m_listRightFiles.SetFont(&m_uiFont);
     m_listIssues.SetFont(&m_uiFont);
@@ -106,11 +106,11 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     m_staticRightHeader.SetFont(&m_headerFont);
     m_staticIssuesHeader.SetFont(&m_headerFont);
 
-    // ── Brushes ──
+    
     m_brushDialogBg.CreateSolidBrush(CLR_DIALOG_BG);
     m_brushPanelBg.CreateSolidBrush(CLR_PANEL_BG);
 
-    // ── Button styling ──
+    
     m_btnViewAll.SetFont(&m_uiFont);
     m_btnViewAll.ModifyStyle(0, BS_OWNERDRAW);
     m_btnViewAll.EnableWindow(FALSE);
@@ -118,22 +118,22 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     m_btnCorruptInfo.SetFont(&m_uiFont);
     m_btnCorruptInfo.ModifyStyle(0, BS_OWNERDRAW);
 
-    // ── Boundary static for corrupt overlay ──
+    
     m_staticBoundary.Create(_T(""), WS_CHILD | SS_GRAYFRAME, CRect(0,0,0,0), this, 2002);
 
-    // ── Set up headers ──
+    
     m_staticLeftHeader.SetWindowText(_T("  Left Model"));
     m_staticRightHeader.SetWindowText(_T("  Right Model"));
     m_staticIssuesHeader.SetWindowText(_T("  Validation Issues"));
 
-    // ── Setup list columns and styles ──
+    
     SetupListColumns();
 
-    // ── Row height spacer for issue list ──
+    
     m_imageListIssues.Create(1, 48, ILC_COLOR32, 1, 1);
     m_listIssues.SetImageList(&m_imageListIssues, LVSIL_SMALL);
 
-    // ── Explorer theme for modern look ──
+    
     ModifyStyle(0, WS_CLIPCHILDREN);
     ::SetWindowTheme(m_listLeftFiles.GetSafeHwnd(), L"Explorer", NULL);
     ::SetWindowTheme(m_listRightFiles.GetSafeHwnd(), L"Explorer", NULL);
@@ -142,12 +142,12 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     return TRUE;
 }
 
-// =============================================================================
-// List setup
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::SetupListColumns() {
-    // ── File lists — single column, no header ──
+    
     DWORD fStyle = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_INFOTIP;
     m_listLeftFiles.SetExtendedStyle(m_listLeftFiles.GetExtendedStyle() | fStyle);
     m_listLeftFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, 260);
@@ -155,7 +155,7 @@ void CTabXmlValidationDlg::SetupListColumns() {
     m_listRightFiles.SetExtendedStyle(m_listRightFiles.GetExtendedStyle() | fStyle);
     m_listRightFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, 260);
 
-    // ── Issue list — 7 columns ──
+    
     DWORD iStyle = LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES
                  | LVS_EX_DOUBLEBUFFER  | LVS_EX_INFOTIP;
     m_listIssues.SetExtendedStyle(m_listIssues.GetExtendedStyle() | iStyle);
@@ -168,9 +168,9 @@ void CTabXmlValidationDlg::SetupListColumns() {
     m_listIssues.InsertColumn(COL_VIEW,    _T("View"),          LVCFMT_CENTER, 70);
 }
 
-// =============================================================================
-// Data binding
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::SetValidationReport(
     std::shared_ptr<ModelCompare::ValidationReport> report)
@@ -183,16 +183,16 @@ void CTabXmlValidationDlg::SetValidationReport(
     PopulateIssueList(SelectedModel::None, -1);
 }
 
-// =============================================================================
-// File list population
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::PopulateFileLists() {
     m_listLeftFiles.DeleteAllItems();
     m_listRightFiles.DeleteAllItems();
     if (!m_report) return;
 
-    // ── Left model files with issues ──
+    
     for (int i = 0; i < (int)m_report->leftReport.fileResults.size(); i++) {
         const auto& fr = m_report->leftReport.fileResults[i];
         CString name;
@@ -202,7 +202,7 @@ void CTabXmlValidationDlg::PopulateFileLists() {
         m_listLeftFiles.SetItemData(idx, (DWORD_PTR)i);
     }
 
-    // ── Right model files with issues ──
+    
     for (int i = 0; i < (int)m_report->rightReport.fileResults.size(); i++) {
         const auto& fr = m_report->rightReport.fileResults[i];
         CString name;
@@ -215,9 +215,9 @@ void CTabXmlValidationDlg::PopulateFileLists() {
     ResizeListColumns();
 }
 
-// =============================================================================
-// Issue list population
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex) {
     ClearIssueList();
@@ -236,13 +236,13 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
 
     const auto& fr = modelReport->fileResults[fileIndex];
 
-    // Update header with filename
+    
     CString header;
     header.Format(_T("  Validation Issues - %s"),
         CString(fr.relativePath.filename().wstring().c_str()).GetString());
     m_staticIssuesHeader.SetWindowText(header);
 
-    // ── Corrupt file: show overlay, hide issue list ──
+    
     if (fr.isCorrupt) {
         m_listIssues.ShowWindow(SW_HIDE);
         m_staticBoundary.ShowWindow(SW_SHOW);
@@ -250,21 +250,21 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
         CString corruptText = _T("Corrupted XML File");
         m_btnCorruptInfo.SetWindowText(corruptText);
 
-        // Store corruption detail as tooltip
+        
         CString tip = CString(fr.corruptionDetail.c_str());
         m_btnCorruptInfo.SetWindowText(corruptText);
 
-        m_btnViewAll.EnableWindow(TRUE);  // Still allow viewing raw content
+        m_btnViewAll.EnableWindow(TRUE);  
         m_btnCorruptInfo.ShowWindow(SW_SHOW);
         m_btnCorruptInfo.BringWindowToTop();
 
-        // Trigger resize to position the button centrally
+        
         CRect rcClient; GetClientRect(&rcClient);
         OnSize(0, rcClient.Width(), rcClient.Height());
         return;
     }
 
-    // ── Normal file: populate issue list ──
+    
     m_btnCorruptInfo.ShowWindow(SW_HIDE);
     m_staticBoundary.ShowWindow(SW_HIDE);
     m_listIssues.ShowWindow(SW_SHOW);
@@ -276,7 +276,7 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
         CString specStr = ExtractEnglishName(issue.specName);
         CString valStr = ExtractEnglishName(issue.valName);
 
-        // Composite Key construction
+        
         std::string keyParts = "";
         if (!issue.groupId.empty()) keyParts += "G:" + issue.groupId;
         if (!issue.specId.empty()) {
@@ -295,7 +295,7 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
         m_listIssues.SetItemText(idx, COL_SPEC, specStr);
         m_listIssues.SetItemText(idx, COL_VALNAME, valStr);
 
-        // Column: Type
+        
         CString typeStr;
         if (issue.IsDuplicate())
             typeStr = _T("Duplicate ID");
@@ -303,14 +303,14 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
             typeStr = _T("Warning");
         m_listIssues.SetItemText(idx, COL_TYPE, typeStr);
 
-        // Column: Description
+        
         m_listIssues.SetItemText(idx, COL_DESC,
             CString(issue.description.c_str()));
 
-        // Column: View button
+        
         m_listIssues.SetItemText(idx, COL_VIEW, _T("O"));
 
-        // Store index for retrieval on click
+        
         m_listIssues.SetItemData(idx, (DWORD_PTR)i);
     }
 
@@ -323,16 +323,16 @@ void CTabXmlValidationDlg::ClearIssueList() {
     m_listIssues.DeleteAllItems();
 }
 
-// =============================================================================
-// File list selection handlers
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::OnLeftFileListItemChanged(NMHDR* pNMHDR, LRESULT* pResult) {
     auto* pNM = reinterpret_cast<NMLISTVIEW*>(pNMHDR);
     *pResult = 0;
     if (!(pNM->uChanged & LVIF_STATE) || !(pNM->uNewState & LVIS_SELECTED)) return;
 
-    // Deselect right file list
+    
     ClearFileSelection(SelectedModel::Left);
 
     int fi = (int)m_listLeftFiles.GetItemData(pNM->iItem);
@@ -344,7 +344,7 @@ void CTabXmlValidationDlg::OnRightFileListItemChanged(NMHDR* pNMHDR, LRESULT* pR
     *pResult = 0;
     if (!(pNM->uChanged & LVIF_STATE) || !(pNM->uNewState & LVIS_SELECTED)) return;
 
-    // Deselect left file list
+    
     ClearFileSelection(SelectedModel::Right);
 
     int fi = (int)m_listRightFiles.GetItemData(pNM->iItem);
@@ -362,9 +362,9 @@ void CTabXmlValidationDlg::ClearFileSelection(SelectedModel exceptModel) {
     }
 }
 
-// =============================================================================
-// Issue list click — open XML viewer on "View" button
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::OnIssueListClick(NMHDR* pNMHDR, LRESULT* pResult) {
     auto* pNMItem = reinterpret_cast<NMITEMACTIVATE*>(pNMHDR);
@@ -385,20 +385,20 @@ void CTabXmlValidationDlg::OnIssueListClick(NMHDR* pNMHDR, LRESULT* pResult) {
     OpenXmlViewer(*fileResult, &fileResult->issues[issueIdx]);
 }
 
-// =============================================================================
-// View All button — open XML viewer with all issues highlighted
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::OnBnClickedViewAll() {
     const auto* fileResult = GetSelectedFileResult();
     if (!fileResult) return;
 
-    OpenXmlViewer(*fileResult, nullptr);  // nullptr = highlight all
+    OpenXmlViewer(*fileResult, nullptr);  
 }
 
-// =============================================================================
-// XML Viewer popup — uses cached content for instant loading
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::OpenXmlViewer(
     const ModelCompare::FileValidationResult& fileResult,
@@ -410,14 +410,14 @@ void CTabXmlValidationDlg::OpenXmlViewer(
 
     CXmlViewerDlg dlg(this);
 
-    // Use cached content — no disk I/O
+    
     dlg.SetCachedContent(fileResult.cachedFullText, fileResult.cachedLines, title);
 
-    // Build validation highlights
+    
     std::vector<ValidationHighlight> highlights;
 
     if (scrollToIssue) {
-        // Single issue mode: highlight only this issue
+        
         if (scrollToIssue->lineNumber >= 0) {
             COLORREF color = scrollToIssue->IsDuplicate()
                 ? CLR_HIGHLIGHT_DUPLICATE_DK
@@ -426,7 +426,7 @@ void CTabXmlValidationDlg::OpenXmlViewer(
         }
         dlg.SetScrollToLine(scrollToIssue->lineNumber);
     } else {
-        // View All mode: highlight all issues
+        
         for (const auto& issue : fileResult.issues) {
             if (issue.lineNumber >= 0) {
                 COLORREF color = issue.IsDuplicate()
@@ -441,9 +441,9 @@ void CTabXmlValidationDlg::OpenXmlViewer(
     dlg.DoModal();
 }
 
-// =============================================================================
-// Data accessors
-// =============================================================================
+
+
+
 
 const ModelCompare::FileValidationResult* CTabXmlValidationDlg::GetSelectedFileResult() const {
     const auto* modelReport = GetModelReport(m_selectedModel);
@@ -464,9 +464,9 @@ const ModelCompare::ModelValidationReport* CTabXmlValidationDlg::GetModelReport(
     }
 }
 
-// =============================================================================
-// Layout / Resize
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
     CDialogEx::OnSize(nType, cx, cy);
@@ -483,20 +483,20 @@ void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
     int issueX = fileListW + GAP;
     int issueW = cx - issueX;
 
-    // ── Left panel: two stacked file lists, each 50% height ──
-    int halfH = (cy - HDR_H * 2 - GAP) / 2;  // Subtract both headers and gap
+    
+    int halfH = (cy - HDR_H * 2 - GAP) / 2;  
     if (halfH < 50) halfH = 50;
 
     HDWP hDwp = ::BeginDeferWindowPos(10);
     if (!hDwp) return;
 
-    // Left Model header + list
+    
     hDwp = ::DeferWindowPos(hDwp, m_staticLeftHeader.GetSafeHwnd(), NULL,
         0, 0, fileListW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
     hDwp = ::DeferWindowPos(hDwp, m_listLeftFiles.GetSafeHwnd(), NULL,
         0, HDR_H, fileListW, halfH, SWP_NOZORDER | SWP_NOACTIVATE);
 
-    // Right Model header + list
+    
     int rightHeaderY = HDR_H + halfH + GAP;
     hDwp = ::DeferWindowPos(hDwp, m_staticRightHeader.GetSafeHwnd(), NULL,
         0, rightHeaderY, fileListW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -504,7 +504,7 @@ void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
         0, rightHeaderY + HDR_H, fileListW, cy - rightHeaderY - HDR_H,
         SWP_NOZORDER | SWP_NOACTIVATE);
 
-    // ── Right panel: View All button + issues header + issue list ──
+    
     int btnViewAllX = cx - VIEW_ALL_W;
     hDwp = ::DeferWindowPos(hDwp, m_btnViewAll.GetSafeHwnd(), NULL,
         btnViewAllX, 0, VIEW_ALL_W, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -517,7 +517,7 @@ void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
     hDwp = ::DeferWindowPos(hDwp, m_listIssues.GetSafeHwnd(), NULL,
         issueX, HDR_H, issueW, cy - HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
 
-    // Boundary for corrupt overlay
+    
     if (m_staticBoundary.GetSafeHwnd()) {
         hDwp = ::DeferWindowPos(hDwp, m_staticBoundary.GetSafeHwnd(), NULL,
             issueX, HDR_H, issueW, cy - HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -525,7 +525,7 @@ void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
 
     ::EndDeferWindowPos(hDwp);
 
-    // ── Position corrupt info button centered in issue area ──
+    
     if (m_btnCorruptInfo.GetSafeHwnd() && m_btnCorruptInfo.IsWindowVisible()) {
         int btnW = 220;
         int btnH = 40;
@@ -541,7 +541,7 @@ void CTabXmlValidationDlg::ResizeListColumns() {
     if (!m_listLeftFiles.GetSafeHwnd() || !m_listRightFiles.GetSafeHwnd()
         || !m_listIssues.GetSafeHwnd()) return;
 
-    // File lists: single column fills width
+    
     CRect leftRect;
     m_listLeftFiles.GetClientRect(&leftRect);
     m_listLeftFiles.SetColumnWidth(0, leftRect.Width() - 2);
@@ -550,13 +550,13 @@ void CTabXmlValidationDlg::ResizeListColumns() {
     m_listRightFiles.GetClientRect(&rightRect);
     m_listRightFiles.SetColumnWidth(0, rightRect.Width() - 2);
 
-    // Issue list: proportional columns
+    
     CRect issueRect;
     m_listIssues.GetClientRect(&issueRect);
     int totalWidth = issueRect.Width();
 
     if (totalWidth > 0) {
-        // Composite Key=18%, Group=13%, Spec=14%, Val Name=14%, Type=11%, Description=22%, View=8%
+        
         const double colRatios[7] = { 0.18, 0.13, 0.14, 0.14, 0.11, 0.22, 0.08 };
         int w[7], sum = 0;
         for (int i = 0; i < 6; ++i) {
@@ -569,9 +569,9 @@ void CTabXmlValidationDlg::ResizeListColumns() {
     }
 }
 
-// =============================================================================
-// Info tips
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::OnIssueListGetInfoTip(NMHDR* pNMHDR, LRESULT* pResult) {
     auto* pInfoTip = reinterpret_cast<NMLVGETINFOTIP*>(pNMHDR);
@@ -601,10 +601,10 @@ void CTabXmlValidationDlg::OnRightFileListGetInfoTip(NMHDR* pNMHDR, LRESULT* pRe
     _tcsncpy_s(pInfoTip->pszText, pInfoTip->cchTextMax, text, _TRUNCATE);
 }
 
-// =============================================================================
-// Styling — OnCtlColor, OnEraseBkgnd, OnDrawItem
-// Matches TabSpecIdCompareDlg patterns exactly
-// =============================================================================
+
+
+
+
 
 HBRUSH CTabXmlValidationDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
     HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
@@ -704,16 +704,16 @@ void CTabXmlValidationDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStr
     }
 }
 
-// =============================================================================
-// Custom draw — file lists and issue list
-// =============================================================================
+
+
+
 
 void CTabXmlValidationDlg::OnLeftFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult) {
     auto* pCD = reinterpret_cast<NMLVCUSTOMDRAW*>(pNMHDR);
     *pResult = CDRF_DODEFAULT;
     if (pCD->nmcd.dwDrawStage == CDDS_PREPAINT) { *pResult = CDRF_NOTIFYITEMDRAW; return; }
     if (pCD->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
-        // All files in validation have issues — no special coloring needed
+        
         pCD->clrTextBk = CLR_DIALOG_BG;
         pCD->clrText = CLR_TEXT_PRIMARY;
     }
@@ -750,7 +750,7 @@ void CTabXmlValidationDlg::OnIssueListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult
         COLORREF txt = CLR_TEXT_PRIMARY;
 
         if (displayIdx >= 0 && subItem == COL_VIEW) {
-            // Draw "View" button styled like TabSpecIdCompareDlg's View column
+            
             CDC* pDC = CDC::FromHandle(pCD->nmcd.hdc);
             CRect rect;
             m_listIssues.GetSubItemRect(row, subItem, LVIR_BOUNDS, rect);

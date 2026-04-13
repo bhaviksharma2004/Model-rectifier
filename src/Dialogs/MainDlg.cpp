@@ -100,7 +100,7 @@ void CMainDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult) {
     m_tabXmlVal.ShowWindow(sel == 1 ? SW_SHOW : SW_HIDE);
     m_tabSpecVal.ShowWindow(sel == 2 ? SW_SHOW : SW_HIDE);
 
-    // Dynamic button text based on active tab
+    
     if (sel == 1)
         m_btnCompare.SetWindowText(_T("Validate\nModels"));
     else
@@ -145,11 +145,11 @@ void CMainDlg::OnBnClickedCompare() {
 
     int activeTab = m_tabMain.GetCurSel();
     if (activeTab == 1) {
-        // XML Validation tab
+        
         UpdateSummary(_T("Validating..."));
         RunValidation();
     } else {
-        // Compare tabs
+        
         UpdateSummary(_T("Comparing..."));
         m_tabSpecId.SetReport(nullptr);
         RunCompare();

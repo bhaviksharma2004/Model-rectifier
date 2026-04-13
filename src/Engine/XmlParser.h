@@ -1,15 +1,3 @@
-// =============================================================================
-// XmlParser.h
-// Parses LAI XML configuration files and extracts structured node information.
-//
-// Two parsing modes:
-//   1. Flat — Parse() returns a flat list of <val> nodes (used by XML viewer).
-//   2. Hierarchical — ParseHierarchical() preserves the group→spec→val tree
-//      (used by the structural comparator for level-aware diff detection).
-//
-// Understands the <data> -> <group> -> <spec> -> <val> hierarchy.
-// Extracts ALL attributes from each level for maximum extensibility.
-// =============================================================================
 #pragma once
 
 #include "DiffTypes.h"

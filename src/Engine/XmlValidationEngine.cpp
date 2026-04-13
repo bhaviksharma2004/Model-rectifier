@@ -1,10 +1,3 @@
-// =============================================================================
-// XmlValidationEngine.cpp
-// Implementation of the XML validation engine.
-//
-// Each check method is self-contained and clearly named for readability.
-// The file content is cached during validation for instant XML viewer popup.
-// =============================================================================
 #include "pch.h"
 #include "XmlValidationEngine.h"
 #include "tinyxml2/tinyxml2.h"
@@ -16,10 +9,6 @@
 
 namespace ModelCompare {
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Utility helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
 std::string XmlValidationEngine::SafeAttr(
     const tinyxml2::XMLElement* elem, const char* name)
 {
@@ -30,11 +19,11 @@ std::string XmlValidationEngine::SafeAttr(
 int XmlValidationEngine::GetElementLineNumber(
     const tinyxml2::XMLElement* elem)
 {
-    return elem ? elem->GetLineNum() - 1 : -1;   // tinyxml2 is 1-based, we use 0-based
+    return elem ? elem->GetLineNum() - 1 : -1;   
 }
 
-/// Returns true if every character in `s` is a digit (allowing leading zeros).
-/// Empty strings return false.
+
+
 static bool IsNumericString(const std::string& s) {
     if (s.empty()) return false;
     for (char c : s) {
@@ -43,9 +32,9 @@ static bool IsNumericString(const std::string& s) {
     return true;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// File enumeration (reuses same pattern as CompareEngine)
-// ─────────────────────────────────────────────────────────────────────────────
+
+
+
 
 static std::vector<std::filesystem::path> EnumerateXmlFiles(
     const std::filesystem::path& root)
@@ -56,7 +45,7 @@ static std::vector<std::filesystem::path> EnumerateXmlFiles(
     for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
         if (entry.is_regular_file()) {
             auto ext = entry.path().extension().wstring();
-            // Case-insensitive .xml check
+            
             if (ext == L".xml" || ext == L".XML" || ext == L".Xml") {
                 files.push_back(entry.path());
             }
@@ -65,9 +54,9 @@ static std::vector<std::filesystem::path> EnumerateXmlFiles(
     return files;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Top-level orchestration
-// ─────────────────────────────────────────────────────────────────────────────
+
+
+
 
 ValidationReport XmlValidationEngine::ValidateModels(
     const std::filesystem::path& leftRoot,
@@ -100,13 +89,8 @@ ModelValidationReport XmlValidationEngine::ValidateSingleModel(
             report.fileResults.push_back(std::move(fileResult));
         }
     }
-
     return report;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Per-file validation
-// ─────────────────────────────────────────────────────────────────────────────
 
 FileValidationResult XmlValidationEngine::ValidateFile(
     const std::filesystem::path& filePath,
@@ -115,8 +99,6 @@ FileValidationResult XmlValidationEngine::ValidateFile(
     FileValidationResult result;
     result.absolutePath = filePath;
     result.relativePath = std::filesystem::relative(filePath, modelRoot);
-
-    // ── Step 1: Read file content and cache for instant XML viewer popup ──
     {
         std::ifstream fs(filePath, std::ios::in | std::ios::binary);
         if (!fs.is_open()) {
@@ -132,7 +114,6 @@ FileValidationResult XmlValidationEngine::ValidateFile(
         }
         fs.close();
 
-        // Build full text for RichEdit
         size_t totalChars = 0;
         for (const auto& ln : result.cachedLines)
             totalChars += (size_t)ln.GetLength() + 2;
@@ -144,43 +125,23 @@ FileValidationResult XmlValidationEngine::ValidateFile(
         }
     }
 
-    // ── Step 2: Parse with tinyxml2 ──
     tinyxml2::XMLDocument doc;
-    {
-        // Convert cached content to UTF-8 for tinyxml2
+    {  
         CStringA utf8Content(result.cachedFullText);
         if (doc.Parse(utf8Content.GetString(), utf8Content.GetLength()) != tinyxml2::XML_SUCCESS) {
             result.isCorrupt = true;
-            result.corruptionDetail = doc.ErrorStr();
-            // Corrupt file: skip all checks, keep cached content for viewer
+            result.corruptionDetail = doc.ErrorStr();       
             return result;
         }
     }
-
-    // ── Step 3: Run all validation checks ──
-    // Each check is a standalone method for clarity and extensibility.
-    // To add a new check, create CheckXxx() and call it here.
 
     CheckDuplicateIds(doc, result);
     CheckMissingRequiredAttributes(doc, result);
     CheckOrphanedElements(doc, result);
     CheckUnrecognizedTags(doc, result);
     CheckInvalidDataFormats(doc, result);
-
     return result;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Check 1: Duplicate IDs
-//
-// Scope:
-//   - group_ID must be unique within <data>
-//   - spec_ID must be unique within each <group>
-//   - val_id must be unique within each <spec>
-//
-// Strategy: Collect IDs into a map, then flag entries with count > 1.
-// All occurrences of a duplicate are reported.
-// ─────────────────────────────────────────────────────────────────────────────
 
 void XmlValidationEngine::CheckDuplicateIds(
     tinyxml2::XMLDocument& doc,
@@ -188,8 +149,6 @@ void XmlValidationEngine::CheckDuplicateIds(
 {
     auto* dataElem = doc.FirstChildElement("data");
     if (!dataElem) return;
-
-    // ── group_ID duplicates within <data> ──
     {
         struct GroupInfo { std::string name; int line; };
         std::unordered_map<std::string, std::vector<GroupInfo>> groupIdMap;
@@ -218,7 +177,7 @@ void XmlValidationEngine::CheckDuplicateIds(
         }
     }
 
-    // ── spec_ID duplicates within each <group> ──
+    
     for (auto* groupElem = dataElem->FirstChildElement("group");
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
@@ -254,7 +213,7 @@ void XmlValidationEngine::CheckDuplicateIds(
         }
     }
 
-    // ── val_id duplicates within each <spec> ──
+    
     for (auto* groupElem = dataElem->FirstChildElement("group");
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
@@ -300,16 +259,6 @@ void XmlValidationEngine::CheckDuplicateIds(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Check 2: Missing Required Attributes
-//
-// Required attributes per element:
-//   <group>: group_ID, group_name
-//   <spec>:  spec_ID, spec_name
-//   <val>:   val_id, val_name
-//
-// NOTE: This list is intentionally minimal. Expand as domain knowledge grows.
-// ─────────────────────────────────────────────────────────────────────────────
 
 void XmlValidationEngine::CheckMissingRequiredAttributes(
     tinyxml2::XMLDocument& doc,
@@ -318,9 +267,9 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
     auto* dataElem = doc.FirstChildElement("data");
     if (!dataElem) return;
 
-    // ── Required attributes table — extend here as needed ──
+    
     struct RequiredAttr { const char* tag; const char* attr; };
-    // Not used as a flat scan; we walk the hierarchy to populate context fields.
+    
 
     for (auto* groupElem = dataElem->FirstChildElement("group");
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
@@ -328,7 +277,7 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
         std::string gid   = SafeAttr(groupElem, "group_ID");
         std::string gname = SafeAttr(groupElem, "group_name");
 
-        // Check group required attributes
+        
         const char* groupRequiredAttrs[] = { "group_ID", "group_name" };
         for (const char* attr : groupRequiredAttrs) {
             if (!groupElem->Attribute(attr)) {
@@ -350,7 +299,7 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
             std::string sid   = SafeAttr(specElem, "spec_ID");
             std::string sname = SafeAttr(specElem, "spec_name");
 
-            // Check spec required attributes
+            
             const char* specRequiredAttrs[] = { "spec_ID", "spec_name" };
             for (const char* attr : specRequiredAttrs) {
                 if (!specElem->Attribute(attr)) {
@@ -374,7 +323,7 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
                 std::string vid   = SafeAttr(valElem, "val_id");
                 std::string vname = SafeAttr(valElem, "val_name");
 
-                // Check val required attributes
+                
                 const char* valRequiredAttrs[] = { "val_id", "val_name" };
                 for (const char* attr : valRequiredAttrs) {
                     if (!valElem->Attribute(attr)) {
@@ -398,12 +347,6 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Check 3: Orphaned Elements (Hierarchy Violations)
-//
-// Expected hierarchy: <data> -> <group> -> <spec> -> <val>
-// An element is orphaned if it appears outside its expected parent.
-// ─────────────────────────────────────────────────────────────────────────────
 
 void XmlValidationEngine::CheckOrphanedElements(
     tinyxml2::XMLDocument& doc,
@@ -412,7 +355,7 @@ void XmlValidationEngine::CheckOrphanedElements(
     auto* dataElem = doc.FirstChildElement("data");
     if (!dataElem) return;
 
-    // Check for <spec> or <val> directly under <data> (bypassing <group>)
+    
     for (auto* child = dataElem->FirstChildElement();
          child; child = child->NextSiblingElement())
     {
@@ -440,7 +383,7 @@ void XmlValidationEngine::CheckOrphanedElements(
         }
     }
 
-    // Check for <val> directly under <group> (bypassing <spec>)
+    
     for (auto* groupElem = dataElem->FirstChildElement("group");
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
@@ -468,12 +411,6 @@ void XmlValidationEngine::CheckOrphanedElements(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Check 4: Unrecognized Tags
-//
-// Allowlist: {"data", "group", "spec", "val"}
-// Any element tag not in this list is flagged.
-// ─────────────────────────────────────────────────────────────────────────────
 
 void XmlValidationEngine::CheckUnrecognizedTags(
     tinyxml2::XMLDocument& doc,
@@ -482,7 +419,7 @@ void XmlValidationEngine::CheckUnrecognizedTags(
     auto* root = doc.RootElement();
     if (!root) return;
 
-    // Start recursive scan from root
+    
     ScanForUnrecognizedTags(root, result);
 }
 
@@ -490,7 +427,7 @@ void XmlValidationEngine::ScanForUnrecognizedTags(
     const tinyxml2::XMLElement* elem,
     FileValidationResult& result)
 {
-    // Allowlist of recognized element tags — extend here as needed
+    
     static const std::unordered_set<std::string> allowedTags = {
         "data", "group", "spec", "val"
     };
@@ -504,14 +441,14 @@ void XmlValidationEngine::ScanForUnrecognizedTags(
         issue.lineNumber  = GetElementLineNumber(elem);
         issue.description = "Unrecognized element tag '<" + tag + ">'";
 
-        // Try to populate context from parent chain
+        
         auto* parent = elem->Parent() ? elem->Parent()->ToElement() : nullptr;
         if (parent) {
             std::string parentTag = parent->Name() ? parent->Name() : "";
             if (parentTag == "spec") {
                 issue.specId   = SafeAttr(parent, "spec_ID");
                 issue.specName = SafeAttr(parent, "spec_name");
-                // Walk up to group
+                
                 auto* gp = parent->Parent() ? parent->Parent()->ToElement() : nullptr;
                 if (gp && std::string(gp->Name() ? gp->Name() : "") == "group") {
                     issue.groupId   = SafeAttr(gp, "group_ID");
@@ -527,7 +464,7 @@ void XmlValidationEngine::ScanForUnrecognizedTags(
         result.issues.push_back(std::move(issue));
     }
 
-    // Recurse into children
+    
     for (auto* child = elem->FirstChildElement();
          child; child = child->NextSiblingElement())
     {
@@ -535,15 +472,6 @@ void XmlValidationEngine::ScanForUnrecognizedTags(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Check 5: Invalid Data Formats
-//
-// ID attributes must be numeric:
-//   group_ID, spec_ID, val_id
-//
-// NOTE: Only checks attributes that are present and non-empty.
-//       Missing attributes are caught by CheckMissingRequiredAttributes.
-// ─────────────────────────────────────────────────────────────────────────────
 
 void XmlValidationEngine::CheckInvalidDataFormats(
     tinyxml2::XMLDocument& doc,
@@ -558,7 +486,7 @@ void XmlValidationEngine::CheckInvalidDataFormats(
         std::string gid   = SafeAttr(groupElem, "group_ID");
         std::string gname = SafeAttr(groupElem, "group_name");
 
-        // Validate group_ID is numeric
+        
         if (!gid.empty() && !IsNumericString(gid)) {
             ValidationIssue issue;
             issue.type        = ValidationIssueType::InvalidDataFormat;
@@ -577,7 +505,7 @@ void XmlValidationEngine::CheckInvalidDataFormats(
             std::string sid   = SafeAttr(specElem, "spec_ID");
             std::string sname = SafeAttr(specElem, "spec_name");
 
-            // Validate spec_ID is numeric
+            
             if (!sid.empty() && !IsNumericString(sid)) {
                 ValidationIssue issue;
                 issue.type        = ValidationIssueType::InvalidDataFormat;
@@ -598,7 +526,7 @@ void XmlValidationEngine::CheckInvalidDataFormats(
                 std::string vid   = SafeAttr(valElem, "val_id");
                 std::string vname = SafeAttr(valElem, "val_name");
 
-                // Validate val_id is numeric
+                
                 if (!vid.empty() && !IsNumericString(vid)) {
                     ValidationIssue issue;
                     issue.type        = ValidationIssueType::InvalidDataFormat;
@@ -619,4 +547,4 @@ void XmlValidationEngine::CheckInvalidDataFormats(
     }
 }
 
-} // namespace ModelCompare
+} 

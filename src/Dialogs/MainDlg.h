@@ -1,9 +1,9 @@
-// =============================================================================
-// MainDlg.h — Redesigned two-panel layout with premium UI enhancements.
-//
-// LEFT:  File list (filename only, color-coded by status)
-// RIGHT: ID mismatches with per-row View/Apply buttons + Status column
-// =============================================================================
+
+
+
+
+
+
 #pragma once
 
 #include "Engine/DiffTypes.h"

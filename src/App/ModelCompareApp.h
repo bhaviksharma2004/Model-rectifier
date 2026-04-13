@@ -1,7 +1,7 @@
-// =============================================================================
-// ModelCompareApp.h
-// CWinApp-derived application class for the ModelCompare tool.
-// =============================================================================
+
+
+
+
 #pragma once
 
 #include "resource.h"
