@@ -464,7 +464,7 @@ void CTabSpecIdCompareDlg::OnBnClickedFileAction() {
 
     if (bSuccess) {
         
-        GetParent()->GetParent()->SendMessage(WM_COMMAND, MAKEWPARAM(IDC_BTN_COMPARE, BN_CLICKED), 0);
+        GetParent()->SendMessage(WM_COMMAND, MAKEWPARAM(IDC_BTN_COMPARE, BN_CLICKED), 0);
     } else {
         CString err; err.Format(_T("Apply failed: %s"), errText.GetString());
         AfxMessageBox(err, MB_ICONERROR);
