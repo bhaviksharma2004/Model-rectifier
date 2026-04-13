@@ -84,19 +84,6 @@ private:
     std::vector<ValidationHighlight> m_validationHighlights;
     int m_scrollToLineNumber = -1;
 
-    
-    static constexpr COLORREF CLR_BG_DARK    = RGB(30, 30, 30);    
-    static constexpr COLORREF CLR_TEXT_LIGHT  = RGB(212, 212, 212); 
-
-    
-    static constexpr COLORREF CLR_TAG        = RGB(86, 156, 214);   
-    static constexpr COLORREF CLR_ATTR       = RGB(156, 220, 254);  
-    static constexpr COLORREF CLR_STRING     = RGB(206, 145, 120);  
-    static constexpr COLORREF CLR_COMMENT    = RGB(106, 153, 85);   
-
-    
-    static constexpr COLORREF CLR_DIFF_EXTRA_BG   = RGB(45, 95, 55);   
-    static constexpr COLORREF CLR_DIFF_MISSING_BG = RGB(120, 45, 45);  
 
     
     void LoadAndHighlight();

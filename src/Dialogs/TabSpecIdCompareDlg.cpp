@@ -4,6 +4,7 @@
 #include "Engine/XmlApplyEngine.h"
 #include <UxTheme.h>
 #include <cctype>
+#include "Theme.h"
 
 enum MismatchCol {
     COL_KEY = 0,
@@ -64,12 +65,12 @@ BOOL CTabSpecIdCompareDlg::OnInitDialog() {
     LOGFONT lf = {};
     SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(LOGFONT), &lf, 0);
     wcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-    lf.lfHeight = -14;
+    lf.lfHeight = Theme::Get()->FontSizeDefault();
     m_uiFont.CreateFontIndirect(&lf);
 
     LOGFONT lfHeader = {};
     wcscpy_s(lfHeader.lfFaceName, _T("Segoe UI Semibold"));
-    lfHeader.lfHeight = -15;
+    lfHeader.lfHeight = Theme::Get()->FontSizeHeader();
     lfHeader.lfWeight = FW_SEMIBOLD;
     m_headerFont.CreateFontIndirect(&lfHeader);
 
@@ -78,8 +79,8 @@ BOOL CTabSpecIdCompareDlg::OnInitDialog() {
     m_staticFilesHeader.SetFont(&m_headerFont);
     m_staticMismatchHeader.SetFont(&m_headerFont);
 
-    m_brushDialogBg.CreateSolidBrush(CLR_DIALOG_BG);
-    m_brushPanelBg.CreateSolidBrush(CLR_PANEL_BG);
+    m_brushDialogBg.CreateSolidBrush(Theme::Get()->DialogBg());
+    m_brushPanelBg.CreateSolidBrush(Theme::Get()->PanelBg());
 
     m_btnApplyAll.SetFont(&m_uiFont);
     m_btnApplyAll.ModifyStyle(0, BS_OWNERDRAW);
@@ -117,12 +118,11 @@ void CTabSpecIdCompareDlg::SetReport(std::shared_ptr<ModelCompare::ModelDiffRepo
 void CTabSpecIdCompareDlg::OnSize(UINT nType, int cx, int cy) {
     CDialogEx::OnSize(nType, cx, cy);
     if (cx > 0 && cy > 0) {
+        const double LEFT_RATIO = 0.20;
+        const int HEADER_H = Theme::Get()->LayoutHeaderHeight();
+        const int GAP = Theme::Get()->LayoutGap();
         
-        const double LEFT_PANEL_RATIO = 0.20;
-        const int HDR_H = 22;
-        const int GAP = 6;
-        
-        int fileListW = (int)((cx - GAP) * LEFT_PANEL_RATIO);
+        int fileListW = (int)((cx - GAP) * LEFT_RATIO);
         if (fileListW < 150) fileListW = 150;
         
         int mismatchX = fileListW + GAP;
@@ -132,9 +132,9 @@ void CTabSpecIdCompareDlg::OnSize(UINT nType, int cx, int cy) {
         if (!hDwp) return;
 
         hDwp = ::DeferWindowPos(hDwp, m_staticFilesHeader.GetSafeHwnd(), NULL,
-            0, 0, fileListW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+            0, 0, fileListW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
         hDwp = ::DeferWindowPos(hDwp, m_listFiles.GetSafeHwnd(), NULL,
-            0, HDR_H, fileListW, cy - HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+            0, HEADER_H, fileListW, cy - HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
 
         int applyAllW = 120;
         int applySelW = 110;
@@ -144,23 +144,23 @@ void CTabSpecIdCompareDlg::OnSize(UINT nType, int cx, int cy) {
         int btnApplySelX = btnApplyX - GAP - applySelW;
         
         hDwp = ::DeferWindowPos(hDwp, m_btnApplySelection.GetSafeHwnd(), NULL,
-            btnApplySelX, 0, applySelW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+            btnApplySelX, 0, applySelW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
         hDwp = ::DeferWindowPos(hDwp, m_btnApplyAll.GetSafeHwnd(), NULL,
-            btnApplyX, 0, applyAllW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+            btnApplyX, 0, applyAllW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
         hDwp = ::DeferWindowPos(hDwp, m_btnViewXml.GetSafeHwnd(), NULL,
-            btnViewX, 0, viewXmlW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+            btnViewX, 0, viewXmlW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
 
         int mismatchHeaderW = btnApplySelX - mismatchX - GAP;
         if (mismatchHeaderW < 10) mismatchHeaderW = 10;
         hDwp = ::DeferWindowPos(hDwp, m_staticMismatchHeader.GetSafeHwnd(), NULL,
-            mismatchX, 0, mismatchHeaderW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+            mismatchX, 0, mismatchHeaderW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
 
         hDwp = ::DeferWindowPos(hDwp, m_listMismatches.GetSafeHwnd(), NULL,
-            mismatchX, HDR_H, mismatchW, cy - HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+            mismatchX, HEADER_H, mismatchW, cy - HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
 
         if (m_staticBoundary.GetSafeHwnd()) {
             hDwp = ::DeferWindowPos(hDwp, m_staticBoundary.GetSafeHwnd(), NULL,
-                mismatchX, HDR_H, mismatchW, cy - HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+                mismatchX, HEADER_H, mismatchW, cy - HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
         }
 
         ::EndDeferWindowPos(hDwp);
@@ -169,7 +169,7 @@ void CTabSpecIdCompareDlg::OnSize(UINT nType, int cx, int cy) {
             int btnW = 160;
             int btnH = 34;
             int btnX = mismatchX + (mismatchW - btnW) / 2;
-            int btnY = HDR_H + (cy - HDR_H - btnH) / 2;
+            int btnY = HEADER_H + (cy - HEADER_H - btnH) / 2;
             m_btnFileAction.SetWindowPos(&wndTop, btnX, btnY, btnW, btnH, SWP_NOACTIVATE);
         }
 
@@ -536,36 +536,36 @@ void CTabSpecIdCompareDlg::OnLvnItemchangedListMismatches(NMHDR* pNMHDR, LRESULT
 HBRUSH CTabSpecIdCompareDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
     HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
     switch (nCtlColor) {
-    case CTLCOLOR_DLG: pDC->SetBkColor(CLR_DIALOG_BG); return m_brushDialogBg;
+    case CTLCOLOR_DLG: pDC->SetBkColor(Theme::Get()->DialogBg()); return m_brushDialogBg;
     case CTLCOLOR_STATIC: {
         UINT ctrlId = pWnd->GetDlgCtrlID(); pDC->SetBkMode(TRANSPARENT);
         if (ctrlId == IDC_STATIC_FILES_HEADER || ctrlId == IDC_STATIC_MISMATCH_HEADER) {
-            pDC->SetTextColor(CLR_HEADER_TEXT); return m_brushPanelBg;
+            pDC->SetTextColor(Theme::Get()->HeaderText()); return m_brushPanelBg;
         }
-        pDC->SetTextColor(CLR_TEXT_PRIMARY); return m_brushDialogBg;
+        pDC->SetTextColor(Theme::Get()->TextPrimary()); return m_brushDialogBg;
     }
-    case CTLCOLOR_BTN: pDC->SetBkColor(CLR_DIALOG_BG); return m_brushDialogBg;
+    case CTLCOLOR_BTN: pDC->SetBkColor(Theme::Get()->DialogBg()); return m_brushDialogBg;
     }
     return hbr;
 }
 
 BOOL CTabSpecIdCompareDlg::OnEraseBkgnd(CDC* pDC) {
-    CRect rc; GetClientRect(&rc); pDC->FillSolidRect(&rc, CLR_DIALOG_BG); return TRUE;
+    CRect rc; GetClientRect(&rc); pDC->FillSolidRect(&rc, Theme::Get()->DialogBg()); return TRUE;
 }
 
 void CTabSpecIdCompareDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct) {
     COLORREF baseColor, pressedColor; int cornerRadius = 8; bool isOurs = true;
     switch (nIDCtl) {
-    case IDC_BTN_APPLY_SELECTION: baseColor = RGB(60, 170, 110); pressedColor = RGB(40, 130, 85); break;
-    case IDC_BTN_APPLY_ALL: baseColor = RGB(60, 170, 110); pressedColor = RGB(40, 130, 85); break;
-    case IDC_BTN_VIEW_XML: baseColor = RGB(80, 140, 220); pressedColor = RGB(55, 110, 190); break;
-    case IDC_BTN_FILE_ACTION: baseColor = RGB(13, 110, 253); pressedColor = RGB(10, 90, 210); cornerRadius = 12; break;
+    case IDC_BTN_APPLY_SELECTION: baseColor = Theme::Get()->BtnApplySelBg(); pressedColor = Theme::Get()->BtnApplySelPrsd(); break;
+    case IDC_BTN_APPLY_ALL: baseColor = Theme::Get()->BtnApplyAllBg(); pressedColor = Theme::Get()->BtnApplyAllPrsd(); break;
+    case IDC_BTN_VIEW_XML: baseColor = Theme::Get()->BtnViewXmlBg(); pressedColor = Theme::Get()->BtnViewXmlPrsd(); break;
+    case IDC_BTN_FILE_ACTION: baseColor = Theme::Get()->AccentBlue(); pressedColor = Theme::Get()->AccentBluePressed(); cornerRadius = Theme::Get()->BtnActionRadius(); break;
     default: isOurs = false; break;
     }
     if (!isOurs) { CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct); return; }
 
     CDC* pDC = CDC::FromHandle(lpDrawItemStruct->hDC); CRect rect = lpDrawItemStruct->rcItem; UINT state = lpDrawItemStruct->itemState;
-    pDC->FillSolidRect(&rect, CLR_DIALOG_BG);
+    pDC->FillSolidRect(&rect, Theme::Get()->DialogBg());
     COLORREF bgColor = baseColor, textColor = RGB(255, 255, 255);
     if (state & ODS_DISABLED) { bgColor = RGB(200, 200, 200); textColor = RGB(150, 150, 150); }
     else if (state & ODS_SELECTED) bgColor = pressedColor;
@@ -588,9 +588,9 @@ void CTabSpecIdCompareDlg::OnFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult)
     if (pCD->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
         if (!m_report) return; int idx = (int)pCD->nmcd.lItemlParam; if (idx < 0 || idx >= (int)m_report->fileResults.size()) return;
         switch (m_report->fileResults[idx].status) {
-        case ModelCompare::FileDiffResult::Status::DeletedInRight: pCD->clrTextBk = CLR_DELETED_BG; pCD->clrText = CLR_DELETED_TXT; break;
-        case ModelCompare::FileDiffResult::Status::AddedInRight: pCD->clrTextBk = CLR_ADDED_BG; pCD->clrText = CLR_ADDED_TXT; break;
-        case ModelCompare::FileDiffResult::Status::Modified: pCD->clrTextBk = CLR_MODIFIED_BG; pCD->clrText = CLR_MODIFIED_TXT; break;
+        case ModelCompare::FileDiffResult::Status::DeletedInRight: pCD->clrTextBk = Theme::Get()->DeletedBg(); pCD->clrText = Theme::Get()->DeletedTxt(); break;
+        case ModelCompare::FileDiffResult::Status::AddedInRight: pCD->clrTextBk = Theme::Get()->AddedBg(); pCD->clrText = Theme::Get()->AddedTxt(); break;
+        case ModelCompare::FileDiffResult::Status::Modified: pCD->clrTextBk = Theme::Get()->ModifiedBg(); pCD->clrText = Theme::Get()->ModifiedTxt(); break;
         default: break;
         }
     }
@@ -602,11 +602,11 @@ void CTabSpecIdCompareDlg::OnMismatchListCustomDraw(NMHDR* pNMHDR, LRESULT* pRes
     if (pCD->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) { *pResult = CDRF_NOTIFYSUBITEMDRAW; return; }
     if (pCD->nmcd.dwDrawStage == (CDDS_ITEMPREPAINT | CDDS_SUBITEM)) {
         int row = (int)pCD->nmcd.dwItemSpec, displayIdx = (int)pCD->nmcd.lItemlParam, subItem = pCD->iSubItem;
-        COLORREF bg = CLR_DIALOG_BG, txt = CLR_TEXT_PRIMARY;
+        COLORREF bg = Theme::Get()->DialogBg(), txt = Theme::Get()->TextPrimary();
         if (displayIdx >= 0 && (subItem == COL_APPLY || subItem == COL_VIEW)) {
             CDC* pDC = CDC::FromHandle(pCD->nmcd.hdc); CRect rect; m_listMismatches.GetSubItemRect(row, subItem, LVIR_BOUNDS, rect);
             pDC->FillSolidRect(&rect, bg); rect.DeflateRect(12, 6);
-            COLORREF btnColor = (subItem == COL_APPLY) ? (m_displayDiffs[displayIdx].isMissingInRight ? CLR_ACCENT_GREEN : CLR_ACCENT_RED) : CLR_ACCENT_BLUE;
+            COLORREF btnColor = (subItem == COL_APPLY) ? (m_displayDiffs[displayIdx].isMissingInRight ? Theme::Get()->AccentGreen() : Theme::Get()->AccentRed()) : Theme::Get()->AccentBlue();
             CBrush brush(btnColor); CPen pen(PS_SOLID, 1, btnColor); CBrush* pOldBrush = pDC->SelectObject(&brush); CPen* pOldPen = pDC->SelectObject(&pen);
             pDC->RoundRect(&rect, CPoint(8, 8)); pDC->SetBkMode(TRANSPARENT); pDC->SetTextColor(RGB(255, 255, 255));
             
@@ -618,7 +618,7 @@ void CTabSpecIdCompareDlg::OnMismatchListCustomDraw(NMHDR* pNMHDR, LRESULT* pRes
             if (subItem == COL_VIEW) {
                 LOGFONT lfIcon = {0};
                 wcscpy_s(lfIcon.lfFaceName, _T("Segoe MDL2 Assets"));
-                lfIcon.lfHeight = -16;
+                lfIcon.lfHeight = Theme::Get()->FontSizeIcon();
                 iconFont.CreateFontIndirect(&lfIcon);
                 pOldFont = pDC->SelectObject(&iconFont);
                 textToDraw = _T("\xE890");

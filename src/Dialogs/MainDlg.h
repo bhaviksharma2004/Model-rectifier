@@ -79,9 +79,4 @@ private:
     CBrush m_brushPanelBg;
     CBrush m_brushEditBg;
 
-    static constexpr COLORREF CLR_DIALOG_BG     = RGB(243, 243, 248);
-    static constexpr COLORREF CLR_EDIT_BG       = RGB(255, 255, 255);
-    static constexpr COLORREF CLR_TEXT_PRIMARY  = RGB(30, 30, 40);
-    static constexpr COLORREF CLR_TEXT_SECONDARY = RGB(90, 95, 110);
-    static constexpr COLORREF CLR_ACCENT_BLUE   = RGB(13, 110, 253);
 };

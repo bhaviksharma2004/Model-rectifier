@@ -79,24 +79,4 @@ private:
     CBrush m_brushDialogBg;
     CBrush m_brushPanelBg;
 
-    static constexpr COLORREF CLR_DIALOG_BG     = RGB(243, 243, 248);
-    static constexpr COLORREF CLR_PANEL_BG      = RGB(235, 237, 245);
-    static constexpr COLORREF CLR_TEXT_PRIMARY   = RGB(30, 30, 40);
-    static constexpr COLORREF CLR_TEXT_SECONDARY = RGB(90, 95, 110);
-    static constexpr COLORREF CLR_HEADER_TEXT    = RGB(25, 60, 140);
-    static constexpr COLORREF CLR_ACCENT_BLUE    = RGB(13, 110, 253);
-    static constexpr COLORREF CLR_ACCENT_GREEN   = RGB(25, 135, 84);
-    static constexpr COLORREF CLR_ACCENT_TEAL    = RGB(13, 202, 240);
-    static constexpr COLORREF CLR_ACCENT_RED     = RGB(220, 53, 69);
-
-    static constexpr COLORREF CLR_DELETED_BG   = RGB(255, 215, 215);
-    static constexpr COLORREF CLR_DELETED_TXT  = RGB(170, 0, 0);
-    static constexpr COLORREF CLR_ADDED_BG     = RGB(215, 255, 215);
-    static constexpr COLORREF CLR_ADDED_TXT    = RGB(0, 110, 0);
-    static constexpr COLORREF CLR_MODIFIED_BG  = RGB(255, 245, 210);
-    static constexpr COLORREF CLR_MODIFIED_TXT = RGB(170, 120, 0);
-    static constexpr COLORREF CLR_MISSING_BG   = RGB(255, 230, 225);
-    static constexpr COLORREF CLR_MISSING_TXT  = RGB(170, 45, 25);
-    static constexpr COLORREF CLR_EXTRA_BG     = RGB(225, 253, 238);
-    static constexpr COLORREF CLR_EXTRA_TXT    = RGB(0, 115, 60);
 };

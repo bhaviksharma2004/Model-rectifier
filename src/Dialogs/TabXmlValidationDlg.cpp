@@ -8,6 +8,28 @@
 #include <UxTheme.h>
 #include <cctype>
 
+#include "Theme.h"
+
+#define FILE_LIST_COL_W          260
+
+#define COL_KEY_W                150
+#define COL_GROUP_W              110
+#define COL_SPEC_W               120
+#define COL_VALNAME_W            120
+#define COL_TYPE_W               100
+#define COL_DESC_W               250
+#define COL_VIEW_W               70
+
+#define LAYOUT_LEFT_PANEL_RATIO  0.20
+#define VIEW_ALL_BTN_W           120
+
+#define MIN_FILE_LIST_WIDTH      150
+#define MIN_HALF_HEIGHT          50
+#define CORRUPT_BTN_W            220
+#define CORRUPT_BTN_H            40
+
+#define FILE_LIST_MARGIN         2
+
 enum IssueCol {
     COL_KEY = 0,
     COL_GROUP,
@@ -90,12 +112,12 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     LOGFONT lf = {};
     SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(LOGFONT), &lf, 0);
     wcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-    lf.lfHeight = -14;
+    lf.lfHeight = Theme::Get()->FontSizeDefault();
     m_uiFont.CreateFontIndirect(&lf);
 
     LOGFONT lfHeader = {};
     wcscpy_s(lfHeader.lfFaceName, _T("Segoe UI Semibold"));
-    lfHeader.lfHeight = -15;
+    lfHeader.lfHeight = Theme::Get()->FontSizeHeader();
     lfHeader.lfWeight = FW_SEMIBOLD;
     m_headerFont.CreateFontIndirect(&lfHeader);
 
@@ -108,8 +130,8 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     m_staticIssuesHeader.SetFont(&m_headerFont);
 
     
-    m_brushDialogBg.CreateSolidBrush(CLR_DIALOG_BG);
-    m_brushPanelBg.CreateSolidBrush(CLR_PANEL_BG);
+    m_brushDialogBg.CreateSolidBrush(Theme::Get()->DialogBg());
+    m_brushPanelBg.CreateSolidBrush(Theme::Get()->PanelBg());
 
     
     m_btnViewAll.SetFont(&m_uiFont);
@@ -151,22 +173,22 @@ void CTabXmlValidationDlg::SetupListColumns() {
     
     DWORD fStyle = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_INFOTIP;
     m_listLeftFiles.SetExtendedStyle(m_listLeftFiles.GetExtendedStyle() | fStyle);
-    m_listLeftFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, 260);
+    m_listLeftFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, FILE_LIST_COL_W);
 
     m_listRightFiles.SetExtendedStyle(m_listRightFiles.GetExtendedStyle() | fStyle);
-    m_listRightFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, 260);
+    m_listRightFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, FILE_LIST_COL_W);
 
     
     DWORD iStyle = LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES
                  | LVS_EX_DOUBLEBUFFER  | LVS_EX_INFOTIP;
     m_listIssues.SetExtendedStyle(m_listIssues.GetExtendedStyle() | iStyle);
-    m_listIssues.InsertColumn(COL_KEY,     _T("Composite Key"), LVCFMT_LEFT,   150);
-    m_listIssues.InsertColumn(COL_GROUP,   _T("Group"),         LVCFMT_LEFT,   110);
-    m_listIssues.InsertColumn(COL_SPEC,    _T("Spec"),          LVCFMT_LEFT,   120);
-    m_listIssues.InsertColumn(COL_VALNAME, _T("Val Name"),      LVCFMT_LEFT,   120);
-    m_listIssues.InsertColumn(COL_TYPE,    _T("Type"),          LVCFMT_LEFT,   100);
-    m_listIssues.InsertColumn(COL_DESC,    _T("Description"),   LVCFMT_LEFT,   250);
-    m_listIssues.InsertColumn(COL_VIEW,    _T("View"),          LVCFMT_CENTER, 70);
+    m_listIssues.InsertColumn(COL_KEY,     _T("Composite Key"), LVCFMT_LEFT,   COL_KEY_W);
+    m_listIssues.InsertColumn(COL_GROUP,   _T("Group"),         LVCFMT_LEFT,   COL_GROUP_W);
+    m_listIssues.InsertColumn(COL_SPEC,    _T("Spec"),          LVCFMT_LEFT,   COL_SPEC_W);
+    m_listIssues.InsertColumn(COL_VALNAME, _T("Val Name"),      LVCFMT_LEFT,   COL_VALNAME_W);
+    m_listIssues.InsertColumn(COL_TYPE,    _T("Type"),          LVCFMT_LEFT,   COL_TYPE_W);
+    m_listIssues.InsertColumn(COL_DESC,    _T("Description"),   LVCFMT_LEFT,   COL_DESC_W);
+    m_listIssues.InsertColumn(COL_VIEW,    _T("View"),          LVCFMT_CENTER, COL_VIEW_W);
 }
 
 
@@ -465,73 +487,64 @@ const ModelCompare::ModelValidationReport* CTabXmlValidationDlg::GetModelReport(
     }
 }
 
-
-
-
-
 void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
     CDialogEx::OnSize(nType, cx, cy);
     if (cx <= 0 || cy <= 0) return;
 
-    const double LEFT_PANEL_RATIO = 0.20;
-    const int HDR_H    = 22;
-    const int GAP      = 6;
-    const int VIEW_ALL_W = 120;
+    int fileListW = (int)((cx - Theme::Get()->LayoutGap()) * LAYOUT_LEFT_PANEL_RATIO);
+    if (fileListW < MIN_FILE_LIST_WIDTH) fileListW = MIN_FILE_LIST_WIDTH;
 
-    int fileListW = (int)((cx - GAP) * LEFT_PANEL_RATIO);
-    if (fileListW < 150) fileListW = 150;
-
-    int issueX = fileListW + GAP;
+    int issueX = fileListW + Theme::Get()->LayoutGap();
     int issueW = cx - issueX;
 
     
-    int halfH = (cy - HDR_H * 2 - GAP) / 2;  
-    if (halfH < 50) halfH = 50;
+    int halfH = (cy - Theme::Get()->LayoutHeaderHeight() * 2 - Theme::Get()->LayoutGap()) / 2;  
+    if (halfH < MIN_HALF_HEIGHT) halfH = MIN_HALF_HEIGHT;
 
     HDWP hDwp = ::BeginDeferWindowPos(10);
     if (!hDwp) return;
 
     
     hDwp = ::DeferWindowPos(hDwp, m_staticLeftHeader.GetSafeHwnd(), NULL,
-        0, 0, fileListW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        0, 0, fileListW, Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
     hDwp = ::DeferWindowPos(hDwp, m_listLeftFiles.GetSafeHwnd(), NULL,
-        0, HDR_H, fileListW, halfH, SWP_NOZORDER | SWP_NOACTIVATE);
+        0, Theme::Get()->LayoutHeaderHeight(), fileListW, halfH, SWP_NOZORDER | SWP_NOACTIVATE);
 
     
-    int rightHeaderY = HDR_H + halfH + GAP;
+    int rightHeaderY = Theme::Get()->LayoutHeaderHeight() + halfH + Theme::Get()->LayoutGap();
     hDwp = ::DeferWindowPos(hDwp, m_staticRightHeader.GetSafeHwnd(), NULL,
-        0, rightHeaderY, fileListW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        0, rightHeaderY, fileListW, Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
     hDwp = ::DeferWindowPos(hDwp, m_listRightFiles.GetSafeHwnd(), NULL,
-        0, rightHeaderY + HDR_H, fileListW, cy - rightHeaderY - HDR_H,
+        0, rightHeaderY + Theme::Get()->LayoutHeaderHeight(), fileListW, cy - rightHeaderY - Theme::Get()->LayoutHeaderHeight(),
         SWP_NOZORDER | SWP_NOACTIVATE);
 
     
-    int btnViewAllX = cx - VIEW_ALL_W;
+    int btnViewAllX = cx - VIEW_ALL_BTN_W;
     hDwp = ::DeferWindowPos(hDwp, m_btnViewAll.GetSafeHwnd(), NULL,
-        btnViewAllX, 0, VIEW_ALL_W, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        btnViewAllX, 0, VIEW_ALL_BTN_W, Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
 
-    int issuesHeaderW = btnViewAllX - issueX - GAP;
+    int issuesHeaderW = btnViewAllX - issueX - Theme::Get()->LayoutGap();
     if (issuesHeaderW < 10) issuesHeaderW = 10;
     hDwp = ::DeferWindowPos(hDwp, m_staticIssuesHeader.GetSafeHwnd(), NULL,
-        issueX, 0, issuesHeaderW, HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        issueX, 0, issuesHeaderW, Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
 
     hDwp = ::DeferWindowPos(hDwp, m_listIssues.GetSafeHwnd(), NULL,
-        issueX, HDR_H, issueW, cy - HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        issueX, Theme::Get()->LayoutHeaderHeight(), issueW, cy - Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
 
     
     if (m_staticBoundary.GetSafeHwnd()) {
         hDwp = ::DeferWindowPos(hDwp, m_staticBoundary.GetSafeHwnd(), NULL,
-            issueX, HDR_H, issueW, cy - HDR_H, SWP_NOZORDER | SWP_NOACTIVATE);
+            issueX, Theme::Get()->LayoutHeaderHeight(), issueW, cy - Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
     ::EndDeferWindowPos(hDwp);
 
     
     if (m_btnCorruptInfo.GetSafeHwnd() && m_btnCorruptInfo.IsWindowVisible()) {
-        int btnW = 220;
-        int btnH = 40;
+        int btnW = CORRUPT_BTN_W;
+        int btnH = CORRUPT_BTN_H;
         int btnX = issueX + (issueW - btnW) / 2;
-        int btnY = HDR_H + (cy - HDR_H - btnH) / 2;
+        int btnY = Theme::Get()->LayoutHeaderHeight() + (cy - Theme::Get()->LayoutHeaderHeight() - btnH) / 2;
         m_btnCorruptInfo.SetWindowPos(&wndTop, btnX, btnY, btnW, btnH, SWP_NOACTIVATE);
     }
 
@@ -545,11 +558,11 @@ void CTabXmlValidationDlg::ResizeListColumns() {
     
     CRect leftRect;
     m_listLeftFiles.GetClientRect(&leftRect);
-    m_listLeftFiles.SetColumnWidth(0, leftRect.Width() - 2);
+    m_listLeftFiles.SetColumnWidth(0, leftRect.Width() - FILE_LIST_MARGIN);
 
     CRect rightRect;
     m_listRightFiles.GetClientRect(&rightRect);
-    m_listRightFiles.SetColumnWidth(0, rightRect.Width() - 2);
+    m_listRightFiles.SetColumnWidth(0, rightRect.Width() - FILE_LIST_MARGIN);
 
     
     CRect issueRect;
@@ -612,7 +625,7 @@ HBRUSH CTabXmlValidationDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 
     switch (nCtlColor) {
     case CTLCOLOR_DLG:
-        pDC->SetBkColor(CLR_DIALOG_BG);
+        pDC->SetBkColor(Theme::Get()->DialogBg());
         return m_brushDialogBg;
 
     case CTLCOLOR_STATIC: {
@@ -622,15 +635,15 @@ HBRUSH CTabXmlValidationDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
             || ctrlId == IDC_STATIC_VALFILES_RIGHT_HEADER
             || ctrlId == IDC_STATIC_VALISSUES_HEADER)
         {
-            pDC->SetTextColor(CLR_HEADER_TEXT);
+            pDC->SetTextColor(Theme::Get()->HeaderText());
             return m_brushPanelBg;
         }
-        pDC->SetTextColor(CLR_TEXT_PRIMARY);
+        pDC->SetTextColor(Theme::Get()->TextPrimary());
         return m_brushDialogBg;
     }
 
     case CTLCOLOR_BTN:
-        pDC->SetBkColor(CLR_DIALOG_BG);
+        pDC->SetBkColor(Theme::Get()->DialogBg());
         return m_brushDialogBg;
     }
     return hbr;
@@ -638,7 +651,7 @@ HBRUSH CTabXmlValidationDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 
 BOOL CTabXmlValidationDlg::OnEraseBkgnd(CDC* pDC) {
     CRect rc; GetClientRect(&rc);
-    pDC->FillSolidRect(&rc, CLR_DIALOG_BG);
+    pDC->FillSolidRect(&rc, Theme::Get()->DialogBg());
     return TRUE;
 }
 
@@ -649,12 +662,13 @@ void CTabXmlValidationDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStr
 
     switch (nIDCtl) {
     case IDC_BTN_VAL_VIEW_ALL:
-        baseColor = RGB(80, 140, 220);
-        pressedColor = RGB(55, 110, 190);
+        baseColor = Theme::Get()->BtnViewXmlBg();
+        pressedColor = Theme::Get()->BtnViewXmlPrsd();
+        cornerRadius = 8;
         break;
     case IDC_BTN_VAL_CORRUPT_INFO:
-        baseColor = RGB(220, 53, 69);
-        pressedColor = RGB(190, 40, 55);
+        baseColor = Theme::Get()->AccentRed();
+        pressedColor = Theme::Get()->AccentRedPressed();
         cornerRadius = 12;
         break;
     default:
@@ -671,7 +685,7 @@ void CTabXmlValidationDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStr
     CRect rect = lpDrawItemStruct->rcItem;
     UINT state = lpDrawItemStruct->itemState;
 
-    pDC->FillSolidRect(&rect, CLR_DIALOG_BG);
+    pDC->FillSolidRect(&rect, Theme::Get()->DialogBg());
     COLORREF bgColor = baseColor;
     COLORREF textColor = RGB(255, 255, 255);
 
@@ -715,8 +729,8 @@ void CTabXmlValidationDlg::OnLeftFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pRes
     if (pCD->nmcd.dwDrawStage == CDDS_PREPAINT) { *pResult = CDRF_NOTIFYITEMDRAW; return; }
     if (pCD->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
         
-        pCD->clrTextBk = CLR_DIALOG_BG;
-        pCD->clrText = CLR_TEXT_PRIMARY;
+        pCD->clrTextBk = Theme::Get()->DialogBg();
+        pCD->clrText = Theme::Get()->TextPrimary();
     }
 }
 
@@ -725,8 +739,8 @@ void CTabXmlValidationDlg::OnRightFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pRe
     *pResult = CDRF_DODEFAULT;
     if (pCD->nmcd.dwDrawStage == CDDS_PREPAINT) { *pResult = CDRF_NOTIFYITEMDRAW; return; }
     if (pCD->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
-        pCD->clrTextBk = CLR_DIALOG_BG;
-        pCD->clrText = CLR_TEXT_PRIMARY;
+        pCD->clrTextBk = Theme::Get()->DialogBg();
+        pCD->clrText = Theme::Get()->TextPrimary();
     }
 }
 
@@ -747,8 +761,8 @@ void CTabXmlValidationDlg::OnIssueListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult
         int displayIdx = (int)pCD->nmcd.lItemlParam;
         int subItem = pCD->iSubItem;
 
-        COLORREF bg = CLR_DIALOG_BG;
-        COLORREF txt = CLR_TEXT_PRIMARY;
+        COLORREF bg = Theme::Get()->DialogBg();
+        COLORREF txt = Theme::Get()->TextPrimary();
 
         if (displayIdx >= 0 && subItem == COL_VIEW) {
             
@@ -759,7 +773,7 @@ void CTabXmlValidationDlg::OnIssueListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult
             pDC->FillSolidRect(&rect, bg);
             rect.DeflateRect(12, 6);
 
-            COLORREF btnColor = CLR_ACCENT_BLUE;
+            COLORREF btnColor = Theme::Get()->AccentBlue();
             CBrush brush(btnColor);
             CPen pen(PS_SOLID, 1, btnColor);
             CBrush* pOldBrush = pDC->SelectObject(&brush);
@@ -771,7 +785,7 @@ void CTabXmlValidationDlg::OnIssueListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult
 
             LOGFONT lfIcon = {0};
             wcscpy_s(lfIcon.lfFaceName, _T("Segoe MDL2 Assets"));
-            lfIcon.lfHeight = -16;
+            lfIcon.lfHeight = Theme::Get()->FontSizeIcon();
             CFont iconFont;
             iconFont.CreateFontIndirect(&lfIcon);
 

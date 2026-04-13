@@ -103,16 +103,6 @@ private:
     CBrush m_brushDialogBg;
     CBrush m_brushPanelBg;
 
-    
-    static constexpr COLORREF CLR_DIALOG_BG      = RGB(243, 243, 248);
-    static constexpr COLORREF CLR_PANEL_BG       = RGB(235, 237, 245);
-    static constexpr COLORREF CLR_TEXT_PRIMARY    = RGB(30, 30, 40);
-    static constexpr COLORREF CLR_TEXT_SECONDARY  = RGB(90, 95, 110);
-    static constexpr COLORREF CLR_HEADER_TEXT     = RGB(25, 60, 140);
-    static constexpr COLORREF CLR_ACCENT_BLUE     = RGB(13, 110, 253);
-    static constexpr COLORREF CLR_ACCENT_RED      = RGB(220, 53, 69);
-
-    
-    static constexpr COLORREF CLR_HIGHLIGHT_WARNING_DK   = RGB(102, 26, 26);   
-    static constexpr COLORREF CLR_HIGHLIGHT_DUPLICATE_DK  = RGB(102, 80, 0);    
+    static constexpr COLORREF CLR_HIGHLIGHT_WARNING_DK   = RGB(102, 26, 26);   // Dark red for corrupt XML
+    static constexpr COLORREF CLR_HIGHLIGHT_DUPLICATE_DK  = RGB(102, 80, 0);    // Dark yellow/orange for dups
 };

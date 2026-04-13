@@ -38,7 +38,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
@@ -128,6 +128,7 @@
     <ClCompile Include="src\Dialogs\TabSpecIdCompareDlg.cpp" />
     <ClCompile Include="src\Dialogs\TabXmlValidationDlg.cpp" />
     <ClCompile Include="src\Dialogs\TabSpecValueCompareDlg.cpp" />
+    <ClCompile Include="src\Dialogs\Theme.cpp" />
     <!-- Engine (Pure C++17 — no MFC dependency in headers) -->
     <ClCompile Include="src\Engine\XmlParser.cpp" />
     <ClCompile Include="src\Engine\StructuralIdComparator.cpp" />
@@ -155,6 +156,7 @@
     <ClInclude Include="src\Dialogs\TabSpecIdCompareDlg.h" />
     <ClInclude Include="src\Dialogs\TabXmlValidationDlg.h" />
     <ClInclude Include="src\Dialogs\TabSpecValueCompareDlg.h" />
+    <ClInclude Include="src\Dialogs\Theme.h" />
     <ClInclude Include="src\Engine\DiffTypes.h" />
     <ClInclude Include="src\Engine\IComparisonStrategy.h" />
     <ClInclude Include="src\Engine\XmlParser.h" />

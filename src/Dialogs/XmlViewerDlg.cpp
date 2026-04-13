@@ -9,6 +9,13 @@
 
 #pragma comment(lib, "dwmapi.lib")
 
+#include "Theme.h"
+
+#define RICH_EDIT_CF_HEIGHT     210
+#define VIEWER_WIDTH_RATIO      0.6
+#define VIEWER_HEIGHT_RATIO     0.8
+#define DEFAULT_LINE_HEIGHT     18
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -86,7 +93,7 @@ BOOL CXmlViewerDlg::OnInitDialog() {
     }
 
 
-    m_brushDarkBg.CreateSolidBrush(CLR_BG_DARK);
+    m_brushDarkBg.CreateSolidBrush(Theme::Get()->BgDark());
 
 
     BOOL darkMode = TRUE;
@@ -104,7 +111,7 @@ BOOL CXmlViewerDlg::OnInitDialog() {
 
 
     LOGFONT lf = {};
-    lf.lfHeight = -14;
+    lf.lfHeight = Theme::Get()->FontSizeDefault();
     lf.lfWeight = FW_NORMAL;
     lf.lfCharSet = DEFAULT_CHARSET;
     lf.lfQuality = CLEARTYPE_NATURAL_QUALITY;
@@ -117,15 +124,15 @@ BOOL CXmlViewerDlg::OnInitDialog() {
 
     m_richEdit.SetReadOnly(TRUE);
     m_richEdit.SetFont(&m_codeFont);
-    m_richEdit.SetBackgroundColor(FALSE, CLR_BG_DARK);
+    m_richEdit.SetBackgroundColor(FALSE, Theme::Get()->BgDark());
 
     CHARFORMAT2 cfDefault = {};
     cfDefault.cbSize = sizeof(cfDefault);
     cfDefault.dwMask = CFM_FACE | CFM_SIZE | CFM_COLOR | CFM_BACKCOLOR;
     wcscpy_s(cfDefault.szFaceName, lf.lfFaceName);
-    cfDefault.yHeight = 210;
-    cfDefault.crTextColor = CLR_TEXT_LIGHT;
-    cfDefault.crBackColor = CLR_BG_DARK;
+    cfDefault.yHeight = RICH_EDIT_CF_HEIGHT;
+    cfDefault.crTextColor = Theme::Get()->TextLight();
+    cfDefault.crBackColor = Theme::Get()->BgDark();
     cfDefault.dwEffects = 0;
     m_richEdit.SetDefaultCharFormat(cfDefault);
 
@@ -136,8 +143,8 @@ BOOL CXmlViewerDlg::OnInitDialog() {
 
     CRect screenRect;
     SystemParametersInfo(SPI_GETWORKAREA, 0, &screenRect, 0);
-    int w = (int)(screenRect.Width() * 0.6);
-    int h = (int)(screenRect.Height() * 0.8);
+    int w = (int)(screenRect.Width() * VIEWER_WIDTH_RATIO);
+    int h = (int)(screenRect.Height() * VIEWER_HEIGHT_RATIO);
     SetWindowPos(nullptr,
         (screenRect.Width() - w) / 2 + screenRect.left,
         (screenRect.Height() - h) / 2 + screenRect.top,
@@ -164,7 +171,7 @@ LRESULT CXmlViewerDlg::OnDeferredDeselect(WPARAM, LPARAM) {
 
 HBRUSH CXmlViewerDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
     if (nCtlColor == CTLCOLOR_DLG) {
-        pDC->SetBkColor(CLR_BG_DARK);
+        pDC->SetBkColor(Theme::Get()->BgDark());
         return (HBRUSH)m_brushDarkBg;
     }
     return CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
@@ -283,8 +290,8 @@ void CXmlViewerDlg::LoadAndHighlight() {
         CHARFORMAT2 cfAll = {};
         cfAll.cbSize = sizeof(cfAll);
         cfAll.dwMask = CFM_COLOR | CFM_BACKCOLOR;
-        cfAll.crTextColor = CLR_TEXT_LIGHT;
-        cfAll.crBackColor = CLR_BG_DARK;
+        cfAll.crTextColor = Theme::Get()->TextLight();
+        cfAll.crBackColor = Theme::Get()->BgDark();
         cfAll.dwEffects = 0;
         m_richEdit.SetSelectionCharFormat(cfAll);
 
@@ -316,7 +323,7 @@ void CXmlViewerDlg::LoadAndHighlight() {
                 int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
                 if (ln >= 0) {
                     int endLn = FindBlockEnd(lines, ln);
-                    HighlightBlock(ln, endLn, CLR_DIFF_EXTRA_BG);
+                    HighlightBlock(ln, endLn, Theme::Get()->DiffExtraBg());
                     if (!m_scrollToKey.empty() && entry.compositeKey == m_scrollToKey && !m_scrollToIsMissing) {
                         scrollToLine = ln;
                     }
@@ -327,7 +334,7 @@ void CXmlViewerDlg::LoadAndHighlight() {
                 int ln = FindValLine(lines, entry.groupId, entry.specId, entry.valId);
                 if (ln >= 0) {
                     int endLn = FindBlockEnd(lines, ln);
-                    HighlightBlock(ln, endLn, CLR_DIFF_MISSING_BG);
+                    HighlightBlock(ln, endLn, Theme::Get()->DiffMissingBg());
                     if (!m_scrollToKey.empty() && entry.compositeKey == m_scrollToKey && m_scrollToIsMissing) {
                         scrollToLine = ln;
                     }
@@ -400,7 +407,7 @@ void CXmlViewerDlg::CollectSyntaxRanges(const CString& text, std::vector<ColorRa
                         }
                         i++;
                     }
-                    ranges.push_back({ commentStart, i, CLR_COMMENT });
+                    ranges.push_back({ commentStart, i, Theme::Get()->SyntaxComment() });
                     continue;
                 }
 
@@ -414,7 +421,7 @@ void CXmlViewerDlg::CollectSyntaxRanges(const CString& text, std::vector<ColorRa
                         }
                         i++;
                     }
-                    ranges.push_back({ piStart, i, CLR_TAG });
+                    ranges.push_back({ piStart, i, Theme::Get()->SyntaxTag() });
                     continue;
                 }
 
@@ -428,31 +435,31 @@ void CXmlViewerDlg::CollectSyntaxRanges(const CString& text, std::vector<ColorRa
                     nameEnd++;
                 }
 
-                ranges.push_back({ tagStart, nameEnd, CLR_TAG });
+                ranges.push_back({ tagStart, nameEnd, Theme::Get()->SyntaxTag() });
                 i = nameEnd;
             } else {
                 i++;
             }
         } else {
             if (c == _T('>')) {
-                ranges.push_back({ i, i + 1, CLR_TAG });
+                ranges.push_back({ i, i + 1, Theme::Get()->SyntaxTag() });
                 inTag = false;
                 i++;
             } else if (c == _T('/') && i + 1 < len && text[i+1] == _T('>')) {
-                ranges.push_back({ i, i + 2, CLR_TAG });
+                ranges.push_back({ i, i + 2, Theme::Get()->SyntaxTag() });
                 inTag = false;
                 i += 2;
             } else if (iswalpha((unsigned short)c) || c == _T('_')) {
                 int attrStart = i;
                 while (i < len && (iswalnum((unsigned short)text[i]) || text[i] == _T('_') || text[i] == _T(':'))) i++;
-                ranges.push_back({ attrStart, i, CLR_ATTR });
+                ranges.push_back({ attrStart, i, Theme::Get()->SyntaxAttr() });
             } else if (c == _T('"') || c == _T('\'')) {
                 TCHAR quoteChar = c;
                 int strStart = i;
                 i++;
                 while (i < len && text[i] != quoteChar) i++;
                 if (i < len) i++;
-                ranges.push_back({ strStart, i, CLR_STRING });
+                ranges.push_back({ strStart, i, Theme::Get()->SyntaxString() });
             } else {
                 i++;
             }
@@ -660,7 +667,7 @@ void CXmlViewerDlg::ScrollToLine(int lineIndex) {
     m_richEdit.GetClientRect(&rc);
 
     CDC* pDC = m_richEdit.GetDC();
-    int lineHeight = 18;
+    int lineHeight = DEFAULT_LINE_HEIGHT;
     if (pDC) {
         CFont* pOldFont = pDC->SelectObject(&m_codeFont);
         TEXTMETRIC tm = {};

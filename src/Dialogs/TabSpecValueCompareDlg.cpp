@@ -5,6 +5,36 @@
 #define new DEBUG_NEW
 #endif
 
+#include "Theme.h"
+
+// UI Metrics & Dimensions
+#define FILE_LIST_COL_FILE_W     200
+#define FILE_LIST_COL_DIFFS_W    50
+
+#define MISS_COL_KEY_W           160
+#define MISS_COL_GROUP_W         100
+#define MISS_COL_SPEC_W          120
+#define MISS_COL_VALNAME_W       120
+#define MISS_COL_PROP_W          100
+#define MISS_COL_LEFT_W          120
+#define MISS_COL_RIGHT_W         120
+
+#define DIFFS_COL_OFFSET         60
+
+#define PROP_COMPOSITE_KEY       18
+#define PROP_GROUP               12
+#define PROP_SPEC                14
+#define PROP_VAL_NAME            14
+#define PROP_PROPERTY            12
+#define PROP_LEFT_VAL            15
+#define PROP_RIGHT_VAL           15
+#define TOTAL_PROP_COUNT         7
+
+#define LAYOUT_LEFT_PANEL_RATIO  0.20
+#define MIN_FILE_LIST_WIDTH      150
+#define MIN_RIGHT_PANEL_WIDTH    100
+#define MIN_LIST_HEIGHT          50
+
 BEGIN_MESSAGE_MAP(CTabSpecValueCompareDlg, CDialogEx)
     ON_WM_SIZE()
     ON_WM_CTLCOLOR()
@@ -31,7 +61,7 @@ BOOL CTabSpecValueCompareDlg::OnInitDialog() {
     LOGFONT lf = {};
     SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(LOGFONT), &lf, 0);
     wcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-    lf.lfHeight = -14;
+    lf.lfHeight = Theme::Get()->FontSizeDefault();
     m_uiFont.CreateFontIndirect(&lf);
 
     lf.lfWeight = FW_BOLD;
@@ -42,7 +72,7 @@ BOOL CTabSpecValueCompareDlg::OnInitDialog() {
     m_listFiles.SetFont(&m_uiFont);
     m_listMismatches.SetFont(&m_uiFont);
 
-    m_brushDialogBg.CreateSolidBrush(CLR_DIALOG_BG);
+    m_brushDialogBg.CreateSolidBrush(Theme::Get()->DialogBg());
 
     m_listFiles.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
     m_listMismatches.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_GRIDLINES);
@@ -52,16 +82,16 @@ BOOL CTabSpecValueCompareDlg::OnInitDialog() {
 }
 
 void CTabSpecValueCompareDlg::SetupListColumns() {
-    m_listFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, 200);
-    m_listFiles.InsertColumn(1, _T("Diffs"), LVCFMT_RIGHT, 50);
+    m_listFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, FILE_LIST_COL_FILE_W);
+    m_listFiles.InsertColumn(1, _T("Diffs"), LVCFMT_RIGHT, FILE_LIST_COL_DIFFS_W);
 
-    m_listMismatches.InsertColumn(0, _T("Composite Key"), LVCFMT_LEFT, 160);
-    m_listMismatches.InsertColumn(1, _T("Group"), LVCFMT_LEFT, 100);
-    m_listMismatches.InsertColumn(2, _T("Spec"), LVCFMT_LEFT, 120);
-    m_listMismatches.InsertColumn(3, _T("Val Name"), LVCFMT_LEFT, 120);
-    m_listMismatches.InsertColumn(4, _T("Property"), LVCFMT_LEFT, 100);
-    m_listMismatches.InsertColumn(5, _T("Left Value"), LVCFMT_LEFT, 120);
-    m_listMismatches.InsertColumn(6, _T("Right Value"), LVCFMT_LEFT, 120);
+    m_listMismatches.InsertColumn(0, _T("Composite Key"), LVCFMT_LEFT, MISS_COL_KEY_W);
+    m_listMismatches.InsertColumn(1, _T("Group"), LVCFMT_LEFT, MISS_COL_GROUP_W);
+    m_listMismatches.InsertColumn(2, _T("Spec"), LVCFMT_LEFT, MISS_COL_SPEC_W);
+    m_listMismatches.InsertColumn(3, _T("Val Name"), LVCFMT_LEFT, MISS_COL_VALNAME_W);
+    m_listMismatches.InsertColumn(4, _T("Property"), LVCFMT_LEFT, MISS_COL_PROP_W);
+    m_listMismatches.InsertColumn(5, _T("Left Value"), LVCFMT_LEFT, MISS_COL_LEFT_W);
+    m_listMismatches.InsertColumn(6, _T("Right Value"), LVCFMT_LEFT, MISS_COL_RIGHT_W);
 }
 
 void CTabSpecValueCompareDlg::ResizeListColumns() {
@@ -71,8 +101,8 @@ void CTabSpecValueCompareDlg::ResizeListColumns() {
     m_listFiles.GetClientRect(&rectFiles);
     int totalW = rectFiles.Width();
     if (totalW > 0) {
-        m_listFiles.SetColumnWidth(0, totalW - 60);
-        m_listFiles.SetColumnWidth(1, 50);
+        m_listFiles.SetColumnWidth(0, totalW - DIFFS_COL_OFFSET);
+        m_listFiles.SetColumnWidth(1, FILE_LIST_COL_DIFFS_W);
     }
 
     CRect rectMiss;
@@ -81,10 +111,10 @@ void CTabSpecValueCompareDlg::ResizeListColumns() {
     if (w > 0) {
         int scrollBarW = GetSystemMetrics(SM_CXVSCROLL);
         int available = w - scrollBarW;
-        int proportions[] = {18, 12, 14, 14, 12, 15, 15};
+        int proportions[] = {PROP_COMPOSITE_KEY, PROP_GROUP, PROP_SPEC, PROP_VAL_NAME, PROP_PROPERTY, PROP_LEFT_VAL, PROP_RIGHT_VAL};
         int totalProp = 0;
         for (int p : proportions) totalProp += p;
-        for (int i = 0; i < 7; ++i) {
+        for (int i = 0; i < TOTAL_PROP_COUNT; ++i) {
             m_listMismatches.SetColumnWidth(i, available * proportions[i] / totalProp);
         }
     }
@@ -101,33 +131,28 @@ void CTabSpecValueCompareDlg::OnSize(UINT nType, int cx, int cy) {
     CDialogEx::OnSize(nType, cx, cy);
     if (!m_listFiles.GetSafeHwnd()) return;
 
-    const double LEFT_PANEL_RATIO = 0.20;
-    const int M = 10;
-    const int HEADER_H = 22;
-    const int GAP = 6;
+    int fileListW = (int)((cx - Theme::Get()->LayoutGap()) * LAYOUT_LEFT_PANEL_RATIO);
+    if (fileListW < MIN_FILE_LIST_WIDTH) fileListW = MIN_FILE_LIST_WIDTH;
 
-    int fileListW = (int)((cx - GAP) * LEFT_PANEL_RATIO);
-    if (fileListW < 150) fileListW = 150;
-
-    int rightX = fileListW + GAP;
+    int rightX = fileListW + Theme::Get()->LayoutGap();
     int rightW = cx - rightX;
-    if (rightW < 100) rightW = 100;
+    if (rightW < MIN_RIGHT_PANEL_WIDTH) rightW = MIN_RIGHT_PANEL_WIDTH;
 
-    int listH = cy - HEADER_H;
-    if (listH < 50) listH = 50;
+    int listH = cy - Theme::Get()->LayoutHeaderHeight();
+    if (listH < MIN_LIST_HEIGHT) listH = MIN_LIST_HEIGHT;
 
     HDWP hDwp = ::BeginDeferWindowPos(4);
     if (!hDwp) return;
 
     hDwp = ::DeferWindowPos(hDwp, m_staticFilesHeader.GetSafeHwnd(), NULL,
-        0, 0, fileListW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        0, 0, fileListW, Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
     hDwp = ::DeferWindowPos(hDwp, m_listFiles.GetSafeHwnd(), NULL,
-        0, HEADER_H, fileListW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
+        0, Theme::Get()->LayoutHeaderHeight(), fileListW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
 
     hDwp = ::DeferWindowPos(hDwp, m_staticMismatchHeader.GetSafeHwnd(), NULL,
-        rightX, 0, rightW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        rightX, 0, rightW, Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
     hDwp = ::DeferWindowPos(hDwp, m_listMismatches.GetSafeHwnd(), NULL,
-        rightX, HEADER_H, rightW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
+        rightX, Theme::Get()->LayoutHeaderHeight(), rightW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
 
     ::EndDeferWindowPos(hDwp);
     ResizeListColumns();
@@ -139,9 +164,9 @@ HBRUSH CTabSpecValueCompareDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
         pDC->SetBkMode(TRANSPARENT);
         UINT id = pWnd->GetDlgCtrlID();
         if (id == IDC_STATIC_VC_FILES_HEADER || id == IDC_STATIC_VC_MISMATCH_HEADER) {
-            pDC->SetTextColor(CLR_HEADER_TEXT);
+            pDC->SetTextColor(Theme::Get()->HeaderText());
         } else {
-            pDC->SetTextColor(CLR_TEXT_PRIMARY);
+            pDC->SetTextColor(Theme::Get()->TextPrimary());
         }
         return m_brushDialogBg;
     }
@@ -151,7 +176,7 @@ HBRUSH CTabSpecValueCompareDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 BOOL CTabSpecValueCompareDlg::OnEraseBkgnd(CDC* pDC) {
     CRect rect;
     GetClientRect(&rect);
-    pDC->FillSolidRect(&rect, CLR_DIALOG_BG);
+    pDC->FillSolidRect(&rect, Theme::Get()->DialogBg());
     return TRUE;
 }
 
@@ -232,8 +257,8 @@ void CTabSpecValueCompareDlg::OnFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pResu
         *pResult = CDRF_NOTIFYITEMDRAW;
         break;
     case CDDS_ITEMPREPAINT:
-        pLVCD->clrTextBk = (pLVCD->nmcd.dwItemSpec % 2 == 0) ? RGB(250, 250, 255) : RGB(255, 255, 255);
-        pLVCD->clrText = CLR_TEXT_PRIMARY;
+        pLVCD->clrTextBk = (pLVCD->nmcd.dwItemSpec % 2 == 0) ? Theme::Get()->AltRowBg() : Theme::Get()->NormalRowBg();
+        pLVCD->clrText = Theme::Get()->TextPrimary();
         *pResult = CDRF_DODEFAULT;
         break;
     }
@@ -248,8 +273,8 @@ void CTabSpecValueCompareDlg::OnMismatchListCustomDraw(NMHDR* pNMHDR, LRESULT* p
         *pResult = CDRF_NOTIFYITEMDRAW;
         break;
     case CDDS_ITEMPREPAINT:
-        pLVCD->clrTextBk = (pLVCD->nmcd.dwItemSpec % 2 == 0) ? RGB(250, 250, 255) : RGB(255, 255, 255);
-        pLVCD->clrText = CLR_TEXT_PRIMARY;
+        pLVCD->clrTextBk = (pLVCD->nmcd.dwItemSpec % 2 == 0) ? Theme::Get()->AltRowBg() : Theme::Get()->NormalRowBg();
+        pLVCD->clrText = Theme::Get()->TextPrimary();
         *pResult = CDRF_DODEFAULT;
         break;
     }

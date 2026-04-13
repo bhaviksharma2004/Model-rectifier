@@ -45,9 +45,4 @@ private:
     int m_selectedFileIndex = -1;
     std::shared_ptr<ModelCompare::ValueDiffReport> m_report;
 
-    static constexpr COLORREF CLR_DIALOG_BG     = RGB(243, 243, 248);
-    static constexpr COLORREF CLR_TEXT_PRIMARY   = RGB(30, 30, 40);
-    static constexpr COLORREF CLR_HEADER_TEXT    = RGB(25, 60, 140);
-    static constexpr COLORREF CLR_MODIFIED_BG    = RGB(255, 245, 210);
-    static constexpr COLORREF CLR_MODIFIED_TXT   = RGB(170, 120, 0);
 };

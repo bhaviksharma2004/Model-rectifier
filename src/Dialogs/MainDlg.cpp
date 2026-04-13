@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "resource.h"
+#include "Theme.h"
 #include "MainDlg.h"
 #include "Engine/CompareEngine.h"
 #include "Engine/StructuralIdComparator.h"
@@ -16,6 +17,11 @@
 #define APP_INITIAL_HEIGHT 600
 #define APP_MIN_WIDTH      1100
 #define APP_MIN_HEIGHT     600
+
+#define LAYOUT_CMP_W         90
+#define LAYOUT_CMP_H         50
+#define MIN_EDIT_W           100
+#define MIN_TAB_H            100
 
 BEGIN_MESSAGE_MAP(CMainDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BTN_BROWSE_LEFT,  &CMainDlg::OnBnClickedBrowseLeft)
@@ -57,7 +63,7 @@ BOOL CMainDlg::OnInitDialog() {
     LOGFONT lf = {};
     SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(LOGFONT), &lf, 0);
     wcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-    lf.lfHeight = -14;
+    lf.lfHeight = Theme::Get()->FontSizeDefault();
     m_uiFont.CreateFontIndirect(&lf);
 
     m_tabMain.SetFont(&m_uiFont);
@@ -67,8 +73,8 @@ BOOL CMainDlg::OnInitDialog() {
     m_btnBrowseLeft.SetFont(&m_uiFont);
     m_btnBrowseRight.SetFont(&m_uiFont);
 
-    m_brushDialogBg.CreateSolidBrush(CLR_DIALOG_BG);
-    m_brushEditBg.CreateSolidBrush(CLR_EDIT_BG);
+    m_brushDialogBg.CreateSolidBrush(Theme::Get()->DialogBg());
+    m_brushEditBg.CreateSolidBrush(Theme::Get()->EditBg());
 
     m_btnCompare.SetFont(&m_uiFont);
     m_btnCompare.ModifyStyle(0, BS_OWNERDRAW);
@@ -296,47 +302,39 @@ void CMainDlg::OnSize(UINT nType, int cx, int cy) {
 void CMainDlg::RepositionControls(int cx, int cy) {
     if (!m_editLeftPath.GetSafeHwnd()) return;
 
-    const int M       = 10;
-    const int ROW_H   = 24;
-    const int GAP     = 6;
-    const int LBL_W   = 150;
-    const int BTN_W   = 65;
-    const int CMP_W   = 90;
-    const int CMP_H   = 50;
-
     HDWP hDwp = ::BeginDeferWindowPos(10);
     if (!hDwp) return;
 
-    int cmpX = cx - M - CMP_W;
-    int inputAreaH = ROW_H * 2 + GAP;
-    int cmpY = M + (inputAreaH - CMP_H) / 2;
+    int cmpX = cx - Theme::Get()->LayoutMargin() - LAYOUT_CMP_W;
+    int inputAreaH = Theme::Get()->LayoutHeaderHeight() * 2 + Theme::Get()->LayoutGap();
+    int cmpY = Theme::Get()->LayoutMargin() + (inputAreaH - LAYOUT_CMP_H) / 2;
     int maxInputRight = cmpX - 12;
-    int editW = maxInputRight - (M + LBL_W + GAP + GAP + BTN_W);
-    if (editW < 100) editW = 100;
-    int y = M;
+    int editW = maxInputRight - (Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap() + Theme::Get()->LayoutGap() + 65);
+    if (editW < MIN_EDIT_W) editW = MIN_EDIT_W;
+    int y = Theme::Get()->LayoutMargin();
 
     CWnd* pLL = GetDlgItem(IDC_STATIC_LEFT_LABEL);
-    if (pLL) hDwp = ::DeferWindowPos(hDwp, pLL->GetSafeHwnd(), NULL, M, y + 3, LBL_W, ROW_H, SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_editLeftPath.GetSafeHwnd(), NULL, M + LBL_W + GAP, y, editW, ROW_H, SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_btnBrowseLeft.GetSafeHwnd(), NULL, M + LBL_W + GAP + editW + GAP, y, BTN_W, ROW_H, SWP_NOZORDER | SWP_NOACTIVATE);
-    y += ROW_H + GAP;
+    if (pLL) hDwp = ::DeferWindowPos(hDwp, pLL->GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), y + 3, 150, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+    hDwp = ::DeferWindowPos(hDwp, m_editLeftPath.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap(), y, editW, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+    hDwp = ::DeferWindowPos(hDwp, m_btnBrowseLeft.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap() + editW + Theme::Get()->LayoutGap(), y, 65, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+    y += 24 + Theme::Get()->LayoutGap();
 
     CWnd* pRL = GetDlgItem(IDC_STATIC_RIGHT_LABEL);
-    if (pRL) hDwp = ::DeferWindowPos(hDwp, pRL->GetSafeHwnd(), NULL, M, y + 3, LBL_W, ROW_H, SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_editRightPath.GetSafeHwnd(), NULL, M + LBL_W + GAP, y, editW, ROW_H, SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_btnBrowseRight.GetSafeHwnd(), NULL, M + LBL_W + GAP + editW + GAP, y, BTN_W, ROW_H, SWP_NOZORDER | SWP_NOACTIVATE);
-    y += ROW_H + GAP;
+    if (pRL) hDwp = ::DeferWindowPos(hDwp, pRL->GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), y + 3, 150, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+    hDwp = ::DeferWindowPos(hDwp, m_editRightPath.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap(), y, editW, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+    hDwp = ::DeferWindowPos(hDwp, m_btnBrowseRight.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap() + editW + Theme::Get()->LayoutGap(), y, 65, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+    y += 24 + Theme::Get()->LayoutGap();
 
-    hDwp = ::DeferWindowPos(hDwp, m_btnCompare.GetSafeHwnd(), NULL, cmpX, cmpY, CMP_W, CMP_H, SWP_NOZORDER | SWP_NOACTIVATE);
+    hDwp = ::DeferWindowPos(hDwp, m_btnCompare.GetSafeHwnd(), NULL, cmpX, cmpY, LAYOUT_CMP_W, LAYOUT_CMP_H, SWP_NOZORDER | SWP_NOACTIVATE);
 
     int summaryH = 22;
-    hDwp = ::DeferWindowPos(hDwp, m_staticSummary.GetSafeHwnd(), NULL, M, y, cx - 2 * M, summaryH, SWP_NOZORDER | SWP_NOACTIVATE);
-    y += summaryH + GAP;
+    hDwp = ::DeferWindowPos(hDwp, m_staticSummary.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), y, cx - 2 * Theme::Get()->LayoutMargin(), summaryH, SWP_NOZORDER | SWP_NOACTIVATE);
+    y += summaryH + Theme::Get()->LayoutGap();
 
-    int tabH = cy - y - M;
-    if (tabH < 100) tabH = 100;
+    int tabH = cy - y - Theme::Get()->LayoutMargin();
+    if (tabH < MIN_TAB_H) tabH = MIN_TAB_H;
     
-    hDwp = ::DeferWindowPos(hDwp, m_tabMain.GetSafeHwnd(), NULL, M, y, cx - 2 * M, tabH, SWP_NOZORDER | SWP_NOACTIVATE);
+    hDwp = ::DeferWindowPos(hDwp, m_tabMain.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), y, cx - 2 * Theme::Get()->LayoutMargin(), tabH, SWP_NOZORDER | SWP_NOACTIVATE);
     ::EndDeferWindowPos(hDwp);
 
     CRect rcTab;
@@ -357,20 +355,20 @@ void CMainDlg::RepositionControls(int cx, int cy) {
 HBRUSH CMainDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
     HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
     switch (nCtlColor) {
-    case CTLCOLOR_DLG: pDC->SetBkColor(CLR_DIALOG_BG); return (HBRUSH)m_brushDialogBg;
+    case CTLCOLOR_DLG: pDC->SetBkColor(Theme::Get()->DialogBg()); return (HBRUSH)m_brushDialogBg;
     case CTLCOLOR_STATIC: {
         UINT ctrlId = pWnd->GetDlgCtrlID(); pDC->SetBkMode(TRANSPARENT);
-        if (ctrlId == IDC_STATIC_SUMMARY) { pDC->SetTextColor(CLR_TEXT_SECONDARY); return (HBRUSH)m_brushDialogBg; }
-        pDC->SetTextColor(CLR_TEXT_PRIMARY); return (HBRUSH)m_brushDialogBg;
+        if (ctrlId == IDC_STATIC_SUMMARY) { pDC->SetTextColor(Theme::Get()->TextSecondary()); return (HBRUSH)m_brushDialogBg; }
+        pDC->SetTextColor(Theme::Get()->TextPrimary()); return (HBRUSH)m_brushDialogBg;
     }
-    case CTLCOLOR_EDIT: pDC->SetBkColor(CLR_EDIT_BG); pDC->SetTextColor(CLR_TEXT_PRIMARY); return (HBRUSH)m_brushEditBg;
-    case CTLCOLOR_BTN: pDC->SetBkColor(CLR_DIALOG_BG); return (HBRUSH)m_brushDialogBg;
+    case CTLCOLOR_EDIT: pDC->SetBkColor(Theme::Get()->EditBg()); pDC->SetTextColor(Theme::Get()->TextPrimary()); return (HBRUSH)m_brushEditBg;
+    case CTLCOLOR_BTN: pDC->SetBkColor(Theme::Get()->DialogBg()); return (HBRUSH)m_brushDialogBg;
     }
     return hbr;
 }
 
 BOOL CMainDlg::OnEraseBkgnd(CDC* pDC) {
-    CRect rc; GetClientRect(&rc); pDC->FillSolidRect(&rc, CLR_DIALOG_BG); return TRUE;
+    CRect rc; GetClientRect(&rc); pDC->FillSolidRect(&rc, Theme::Get()->DialogBg()); return TRUE;
 }
 
 void CMainDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct) {
@@ -379,12 +377,12 @@ void CMainDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct) {
         return;
     }
 
-    COLORREF bgColor = CLR_ACCENT_BLUE;
-    COLORREF pressedColor = RGB(0, 90, 210);
-    int cornerRadius = 14;
+    COLORREF bgColor = Theme::Get()->AccentBlue();
+    COLORREF pressedColor = Theme::Get()->AccentBluePressed();
+    int cornerRadius = Theme::Get()->BtnActionRadius();
 
     CDC* pDC = CDC::FromHandle(lpDrawItemStruct->hDC); CRect rect = lpDrawItemStruct->rcItem; UINT state = lpDrawItemStruct->itemState;
-    pDC->FillSolidRect(&rect, CLR_DIALOG_BG);
+    pDC->FillSolidRect(&rect, Theme::Get()->DialogBg());
 
     COLORREF textColor = RGB(255, 255, 255);
     if (state & ODS_DISABLED) { bgColor = RGB(200, 200, 200); textColor = RGB(150, 150, 150); }
