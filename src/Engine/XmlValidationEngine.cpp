@@ -212,8 +212,7 @@ void XmlValidationEngine::CheckDuplicateIds(
                 issue.groupName   = occ.name;
                 issue.elementTag  = "group";
                 issue.lineNumber  = occ.line;
-                issue.description = "Duplicate group_ID '" + id
-                                  + "' in group '" + occ.name + "'";
+                issue.description = "Duplicate group_ID '" + id + "'";
                 result.issues.push_back(std::move(issue));
             }
         }
@@ -249,9 +248,7 @@ void XmlValidationEngine::CheckDuplicateIds(
                 issue.specName    = occ.name;
                 issue.elementTag  = "spec";
                 issue.lineNumber  = occ.line;
-                issue.description = "Duplicate spec_ID '" + id
-                                  + "' in group '" + gname
-                                  + "' > spec '" + occ.name + "'";
+                issue.description = "Duplicate spec_ID '" + id + "'";
                 result.issues.push_back(std::move(issue));
             }
         }
@@ -295,10 +292,7 @@ void XmlValidationEngine::CheckDuplicateIds(
                     issue.valName     = occ.name;
                     issue.elementTag  = "val";
                     issue.lineNumber  = occ.line;
-                    issue.description = "Duplicate val_id '" + id
-                                      + "' in group '" + gname
-                                      + "' > spec '" + sname
-                                      + "' > val '" + occ.name + "'";
+                    issue.description = "Duplicate val_id '" + id + "'";
                     result.issues.push_back(std::move(issue));
                 }
             }

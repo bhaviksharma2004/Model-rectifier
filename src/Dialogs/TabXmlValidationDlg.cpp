@@ -7,13 +7,27 @@
 #include "XmlViewerDlg.h"
 #include <UxTheme.h>
 
-// ── Issue list column indices ──
 enum IssueCol {
-    COL_NUM = 0,
+    COL_KEY = 0,
+    COL_GROUP,
+    COL_SPEC,
+    COL_VALNAME,
     COL_TYPE,
     COL_DESC,
     COL_VIEW
 };
+
+static CString ExtractEnglishName(const std::string& fullName) {
+    if (fullName.empty()) return _T("missing");
+    size_t pos = fullName.find("$$");
+    std::string eng = (pos != std::string::npos) ? fullName.substr(0, pos) : fullName;
+    
+    // Trim trailing whitespace
+    while (!eng.empty() && std::isspace(static_cast<unsigned char>(eng.back()))) {
+        eng.pop_back();
+    }
+    return CString(eng.c_str());
+}
 
 // =============================================================================
 // Message map
@@ -141,14 +155,17 @@ void CTabXmlValidationDlg::SetupListColumns() {
     m_listRightFiles.SetExtendedStyle(m_listRightFiles.GetExtendedStyle() | fStyle);
     m_listRightFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, 260);
 
-    // ── Issue list — 4 columns ──
+    // ── Issue list — 7 columns ──
     DWORD iStyle = LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES
                  | LVS_EX_DOUBLEBUFFER  | LVS_EX_INFOTIP;
     m_listIssues.SetExtendedStyle(m_listIssues.GetExtendedStyle() | iStyle);
-    m_listIssues.InsertColumn(COL_NUM,  _T("#"),           LVCFMT_CENTER, 35);
-    m_listIssues.InsertColumn(COL_TYPE, _T("Type"),        LVCFMT_LEFT,   100);
-    m_listIssues.InsertColumn(COL_DESC, _T("Description"), LVCFMT_LEFT,   400);
-    m_listIssues.InsertColumn(COL_VIEW, _T("View"),        LVCFMT_CENTER, 70);
+    m_listIssues.InsertColumn(COL_KEY,     _T("Composite Key"), LVCFMT_LEFT,   150);
+    m_listIssues.InsertColumn(COL_GROUP,   _T("Group"),         LVCFMT_LEFT,   110);
+    m_listIssues.InsertColumn(COL_SPEC,    _T("Spec"),          LVCFMT_LEFT,   120);
+    m_listIssues.InsertColumn(COL_VALNAME, _T("Val Name"),      LVCFMT_LEFT,   120);
+    m_listIssues.InsertColumn(COL_TYPE,    _T("Type"),          LVCFMT_LEFT,   100);
+    m_listIssues.InsertColumn(COL_DESC,    _T("Description"),   LVCFMT_LEFT,   250);
+    m_listIssues.InsertColumn(COL_VIEW,    _T("View"),          LVCFMT_CENTER, 70);
 }
 
 // =============================================================================
@@ -255,12 +272,30 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
     for (int i = 0; i < (int)fr.issues.size(); i++) {
         const auto& issue = fr.issues[i];
 
-        // Column 0: Row number
-        CString numStr;
-        numStr.Format(_T("%d"), i + 1);
-        int idx = m_listIssues.InsertItem(i, numStr);
+        CString groupStr = ExtractEnglishName(issue.groupName);
+        CString specStr = ExtractEnglishName(issue.specName);
+        CString valStr = ExtractEnglishName(issue.valName);
 
-        // Column 1: Type
+        // Composite Key construction
+        std::string keyParts = "";
+        if (!issue.groupId.empty()) keyParts += "G:" + issue.groupId;
+        if (!issue.specId.empty()) {
+            if (!keyParts.empty()) keyParts += "|";
+            keyParts += "S:" + issue.specId;
+        }
+        if (!issue.valId.empty()) {
+            if (!keyParts.empty()) keyParts += "|";
+            keyParts += "V:" + issue.valId;
+        }
+        CString compositeKey = CString(keyParts.c_str());
+
+        int idx = m_listIssues.InsertItem(i, compositeKey);
+
+        m_listIssues.SetItemText(idx, COL_GROUP, groupStr);
+        m_listIssues.SetItemText(idx, COL_SPEC, specStr);
+        m_listIssues.SetItemText(idx, COL_VALNAME, valStr);
+
+        // Column: Type
         CString typeStr;
         if (issue.IsDuplicate())
             typeStr = _T("Duplicate ID");
@@ -268,11 +303,11 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
             typeStr = _T("Warning");
         m_listIssues.SetItemText(idx, COL_TYPE, typeStr);
 
-        // Column 2: Description
+        // Column: Description
         m_listIssues.SetItemText(idx, COL_DESC,
             CString(issue.description.c_str()));
 
-        // Column 3: View button
+        // Column: View button
         m_listIssues.SetItemText(idx, COL_VIEW, _T("O"));
 
         // Store index for retrieval on click
@@ -521,15 +556,15 @@ void CTabXmlValidationDlg::ResizeListColumns() {
     int totalWidth = issueRect.Width();
 
     if (totalWidth > 0) {
-        // #=5%, Type=14%, Description=70%, View=11%
-        const double colRatios[4] = { 0.05, 0.14, 0.70, 0.11 };
-        int w[4], sum = 0;
-        for (int i = 0; i < 3; ++i) {
+        // Composite Key=18%, Group=13%, Spec=14%, Val Name=14%, Type=11%, Description=22%, View=8%
+        const double colRatios[7] = { 0.18, 0.13, 0.14, 0.14, 0.11, 0.22, 0.08 };
+        int w[7], sum = 0;
+        for (int i = 0; i < 6; ++i) {
             w[i] = (int)(totalWidth * colRatios[i]);
             sum += w[i];
         }
-        w[3] = totalWidth - sum - 3;
-        for (int i = 0; i < 4; ++i)
+        w[6] = totalWidth - sum - 3;
+        for (int i = 0; i < 7; ++i)
             m_listIssues.SetColumnWidth(i, w[i]);
     }
 }

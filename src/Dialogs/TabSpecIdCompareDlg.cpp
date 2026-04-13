@@ -14,6 +14,14 @@ enum MismatchCol {
     COL_VIEW
 };
 
+static CString ExtractEnglishName(const std::string& fullName) {
+    if (fullName.empty()) return _T("missing");
+    size_t pos = fullName.find("$$");
+    std::string eng = (pos != std::string::npos) ? fullName.substr(0, pos) : fullName;
+    while (!eng.empty() && std::isspace(static_cast<unsigned char>(eng.back()))) eng.pop_back();
+    return CString(eng.c_str());
+}
+
 BEGIN_MESSAGE_MAP(CTabSpecIdCompareDlg, CDialogEx)
     ON_WM_SIZE()
     ON_BN_CLICKED(IDC_BTN_APPLY_ALL,    &CTabSpecIdCompareDlg::OnBnClickedApplyAll)
@@ -285,17 +293,17 @@ void CTabSpecIdCompareDlg::PopulateMismatchList(int fileIndex) {
     for (int i = 0; i < (int)m_displayDiffs.size(); i++) {
         const auto& d = m_displayDiffs[i];
         int idx = m_listMismatches.InsertItem(i, CString(d.entry.compositeKey.c_str()));
-        m_listMismatches.SetItemText(idx, COL_GROUP, CString(d.entry.groupName.c_str()));
+        m_listMismatches.SetItemText(idx, COL_GROUP, ExtractEnglishName(d.entry.groupName));
 
         CString specText;
         if (d.entry.level == ModelCompare::DiffLevel::Group) specText.Format(_T("(%d specs)"), d.entry.childCount);
-        else specText = CString(d.entry.specName.c_str());
+        else specText = ExtractEnglishName(d.entry.specName);
         m_listMismatches.SetItemText(idx, COL_SPEC, specText);
 
         CString valText;
         if (d.entry.level == ModelCompare::DiffLevel::Group) valText = _T("-");
         else if (d.entry.level == ModelCompare::DiffLevel::Spec) valText.Format(_T("(%d vals)"), d.entry.childCount);
-        else valText = CString(d.entry.valName.c_str());
+        else valText = ExtractEnglishName(d.entry.valName);
         m_listMismatches.SetItemText(idx, COL_VALNAME, valText);
 
         m_listMismatches.SetItemText(idx, COL_STATUS, d.isMissingInRight ? _T("Added") : _T("Deleted"));
