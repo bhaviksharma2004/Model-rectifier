@@ -38,7 +38,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
@@ -134,6 +134,7 @@
     <ClCompile Include="src\Engine\CompareEngine.cpp" />
     <ClCompile Include="src\Engine\XmlApplyEngine.cpp" />
     <ClCompile Include="src\Engine\XmlValidationEngine.cpp" />
+    <ClCompile Include="src\Engine\ValueCompareEngine.cpp" />
     <!-- Third-party: TinyXML2 (no precompiled header) -->
     <ClCompile Include="thirdparty\tinyxml2\tinyxml2.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -161,6 +162,7 @@
     <ClInclude Include="src\Engine\CompareEngine.h" />
     <ClInclude Include="src\Engine\XmlApplyEngine.h" />
     <ClInclude Include="src\Engine\XmlValidationEngine.h" />
+    <ClInclude Include="src\Engine\ValueCompareEngine.h" />
     <ClInclude Include="thirdparty\tinyxml2\tinyxml2.h" />
   </ItemGroup>
   <!-- ===================================================================== -->

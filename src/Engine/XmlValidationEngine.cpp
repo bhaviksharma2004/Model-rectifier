@@ -199,7 +199,7 @@ void XmlValidationEngine::CheckDuplicateIds(
         for (const auto& [id, occurrences] : specIdMap) {
             if (occurrences.size() <= 1) continue;
             for (const auto& occ : occurrences) {
-                ValidationIssue issue;
+                ValidationIssue issue;  
                 issue.type        = ValidationIssueType::DuplicateSpecId;
                 issue.groupId     = gid;
                 issue.groupName   = gname;

@@ -22,11 +22,11 @@
 // Summary
 #define IDC_STATIC_SUMMARY              1007
 
-// Left Panel — File List
+// Left Panel — File List (Spec ID Compare Tab)
 #define IDC_STATIC_FILES_HEADER         1008
 #define IDC_LIST_FILES                  1009
 
-// Right Panel — ID Mismatches
+// Right Panel — ID Mismatches (Spec ID Compare Tab)
 #define IDC_STATIC_MISMATCH_HEADER      1010
 #define IDC_BTN_APPLY_ALL               1011
 #define IDC_BTN_VIEW_XML                1012
@@ -49,3 +49,12 @@
 #define IDC_LIST_VALISSUES                1205
 #define IDC_BTN_VAL_VIEW_ALL              1206
 #define IDC_BTN_VAL_CORRUPT_INFO          1207
+
+// Top Section — Compare Values Button (Main Dialog)
+#define IDC_BTN_COMPARE_VALUES            1300
+
+// Spec Value Compare Tab — Unique IDs
+#define IDC_STATIC_VC_FILES_HEADER        1302
+#define IDC_LIST_VC_FILES                 1303
+#define IDC_STATIC_VC_MISMATCH_HEADER     1304
+#define IDC_LIST_VC_MISMATCHES            1305

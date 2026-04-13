@@ -104,6 +104,10 @@ XmlParser::ParseResult XmlParser::Parse(const std::filesystem::path& filePath) {
                 node.valDatatype = SafeAttr(valElem, "val_datatype");
                 node.paramId     = SafeAttr(valElem, "param_id");
 
+                for (const tinyxml2::XMLAttribute* attr = valElem->FirstAttribute(); attr != nullptr; attr = attr->Next()) {
+                    node.attributes[attr->Name()] = attr->Value();
+                }
+
                 result.nodes.push_back(std::move(node));
             }
         }

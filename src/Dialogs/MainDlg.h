@@ -1,12 +1,10 @@
 
 
 
-
-
-
 #pragma once
 
 #include "Engine/DiffTypes.h"
+#include "Engine/ValueCompareEngine.h"
 #include <afxbutton.h>
 #include "TabSpecIdCompareDlg.h"
 #include "TabXmlValidationDlg.h"
@@ -16,12 +14,16 @@
 
 #define WM_COMPARE_COMPLETE  (WM_USER + 100)
 #define WM_VALIDATE_COMPLETE (WM_USER + 101)
+#define WM_VALUE_COMPARE_COMPLETE (WM_USER + 102)
 
 
 class CMainDlg : public CDialogEx {
 public:
     CMainDlg(CWnd* pParent = nullptr);
     enum { IDD = IDD_MODELCOMPARE_DIALOG };
+
+    CString GetLeftPath() const;
+    CString GetRightPath() const;
 
 protected:
     virtual void DoDataExchange(CDataExchange* pDX) override;
@@ -31,6 +33,7 @@ protected:
     afx_msg void OnBnClickedBrowseLeft();
     afx_msg void OnBnClickedBrowseRight();
     afx_msg void OnBnClickedCompare();
+    afx_msg void OnBnClickedCompareValues();
 
     afx_msg void OnSize(UINT nType, int cx, int cy);
     afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
@@ -43,6 +46,7 @@ protected:
 
     afx_msg LRESULT OnCompareComplete(WPARAM wParam, LPARAM lParam);
     afx_msg LRESULT OnValidateComplete(WPARAM wParam, LPARAM lParam);
+    afx_msg LRESULT OnValueCompareComplete(WPARAM wParam, LPARAM lParam);
     afx_msg void OnClose();
 
     DECLARE_MESSAGE_MAP()
@@ -54,6 +58,7 @@ private:
     CButton     m_btnBrowseLeft;
     CButton     m_btnBrowseRight;
     CButton     m_btnCompare;
+    CButton     m_btnCompareValues;
     CStatic     m_staticSummary;
 
     CTabCtrl    m_tabMain;
@@ -63,6 +68,7 @@ private:
 
     std::shared_ptr<ModelCompare::ModelDiffReport> m_report;
     std::shared_ptr<ModelCompare::ValidationReport> m_validationReport;
+    std::shared_ptr<ModelCompare::ValueDiffReport> m_valueReport;
 
     CString BrowseForFolder(const CString& title);
     void RepositionControls(int cx, int cy);
@@ -70,6 +76,7 @@ private:
     void UpdateSummary(const CString& text);
     void RunCompare();
     void RunValidation();
+    void RunValueCompare();
 
     CFont  m_uiFont;
     CFont  m_headerFont;
@@ -84,4 +91,5 @@ private:
     static constexpr COLORREF CLR_TEXT_PRIMARY  = RGB(30, 30, 40);
     static constexpr COLORREF CLR_TEXT_SECONDARY = RGB(90, 95, 110);
     static constexpr COLORREF CLR_ACCENT_BLUE   = RGB(13, 110, 253);
+    static constexpr COLORREF CLR_ACCENT_GREEN  = RGB(25, 135, 84);
 };

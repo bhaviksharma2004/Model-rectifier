@@ -4,6 +4,7 @@
 #include "Engine/CompareEngine.h"
 #include "Engine/StructuralIdComparator.h"
 #include "Engine/XmlValidationEngine.h"
+#include "Engine/ValueCompareEngine.h"
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
 
@@ -11,15 +12,16 @@
 #define new DEBUG_NEW
 #endif
 
-#define APP_INITIAL_WIDTH  1000
+#define APP_INITIAL_WIDTH  1100
 #define APP_INITIAL_HEIGHT 600
-#define APP_MIN_WIDTH      1000
+#define APP_MIN_WIDTH      1100
 #define APP_MIN_HEIGHT     600
 
 BEGIN_MESSAGE_MAP(CMainDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BTN_BROWSE_LEFT,  &CMainDlg::OnBnClickedBrowseLeft)
     ON_BN_CLICKED(IDC_BTN_BROWSE_RIGHT, &CMainDlg::OnBnClickedBrowseRight)
     ON_BN_CLICKED(IDC_BTN_COMPARE,      &CMainDlg::OnBnClickedCompare)
+    ON_BN_CLICKED(IDC_BTN_COMPARE_VALUES, &CMainDlg::OnBnClickedCompareValues)
     ON_WM_SIZE()
     ON_WM_GETMINMAXINFO()
     ON_WM_CTLCOLOR()
@@ -29,6 +31,7 @@ BEGIN_MESSAGE_MAP(CMainDlg, CDialogEx)
     ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CMainDlg::OnTcnSelchangeTabMain)
     ON_MESSAGE(WM_COMPARE_COMPLETE, &CMainDlg::OnCompareComplete)
     ON_MESSAGE(WM_VALIDATE_COMPLETE, &CMainDlg::OnValidateComplete)
+    ON_MESSAGE(WM_VALUE_COMPARE_COMPLETE, &CMainDlg::OnValueCompareComplete)
 END_MESSAGE_MAP()
 
 CMainDlg::CMainDlg(CWnd* pParent)
@@ -41,6 +44,7 @@ void CMainDlg::DoDataExchange(CDataExchange* pDX) {
     DDX_Control(pDX, IDC_BTN_BROWSE_LEFT,        m_btnBrowseLeft);
     DDX_Control(pDX, IDC_BTN_BROWSE_RIGHT,       m_btnBrowseRight);
     DDX_Control(pDX, IDC_BTN_COMPARE,            m_btnCompare);
+    DDX_Control(pDX, IDC_BTN_COMPARE_VALUES,     m_btnCompareValues);
     DDX_Control(pDX, IDC_STATIC_SUMMARY,         m_staticSummary);
     DDX_Control(pDX, IDC_TAB_MAIN,               m_tabMain);
 }
@@ -70,6 +74,9 @@ BOOL CMainDlg::OnInitDialog() {
     m_btnCompare.SetFont(&m_uiFont);
     m_btnCompare.ModifyStyle(0, BS_OWNERDRAW);
 
+    m_btnCompareValues.SetFont(&m_uiFont);
+    m_btnCompareValues.ModifyStyle(0, BS_OWNERDRAW);
+
     m_tabMain.InsertItem(0, _T("Spec ID Compare"));
     m_tabMain.InsertItem(1, _T("XML File Validation"));
     m_tabMain.InsertItem(2, _T("Spec Value Compare"));
@@ -91,6 +98,18 @@ BOOL CMainDlg::OnInitDialog() {
     CenterWindow();
 
     return TRUE;
+}
+
+CString CMainDlg::GetLeftPath() const {
+    CString path;
+    if (m_editLeftPath.GetSafeHwnd()) m_editLeftPath.GetWindowText(path);
+    return path;
+}
+
+CString CMainDlg::GetRightPath() const {
+    CString path;
+    if (m_editRightPath.GetSafeHwnd()) m_editRightPath.GetWindowText(path);
+    return path;
 }
 
 void CMainDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult) {
@@ -154,6 +173,24 @@ void CMainDlg::OnBnClickedCompare() {
         m_tabSpecId.SetReport(nullptr);
         RunCompare();
     }
+}
+
+void CMainDlg::OnBnClickedCompareValues() {
+    CString lp, rp;
+    m_editLeftPath.GetWindowText(lp);
+    m_editRightPath.GetWindowText(rp);
+    if (lp.IsEmpty() || rp.IsEmpty()) {
+        AfxMessageBox(_T("Please select both model folders."), MB_ICONWARNING);
+        return;
+    }
+    if (!std::filesystem::exists((LPCWSTR)lp) || !std::filesystem::exists((LPCWSTR)rp)) {
+        AfxMessageBox(_T("One or both folders do not exist."), MB_ICONERROR);
+        return;
+    }
+
+    m_btnCompareValues.EnableWindow(FALSE);
+    UpdateSummary(_T("Comparing values..."));
+    RunValueCompare();
 }
 
 void CMainDlg::RunCompare() {
@@ -223,6 +260,48 @@ LRESULT CMainDlg::OnValidateComplete(WPARAM, LPARAM lParam) {
     return 0;
 }
 
+void CMainDlg::RunValueCompare() {
+    CString lp, rp;
+    m_editLeftPath.GetWindowText(lp);
+    m_editRightPath.GetWindowText(rp);
+    HWND hWnd = GetSafeHwnd();
+
+    std::thread([lw = std::wstring((LPCWSTR)lp),
+                 rw = std::wstring((LPCWSTR)rp), hWnd]() {
+        auto* report = new ModelCompare::ValueDiffReport(
+            ModelCompare::ValueCompareEngine::CompareModels(
+                std::filesystem::path(lw),
+                std::filesystem::path(rw)));
+        ::PostMessage(hWnd, WM_VALUE_COMPARE_COMPLETE, 0, (LPARAM)report);
+    }).detach();
+}
+
+LRESULT CMainDlg::OnValueCompareComplete(WPARAM, LPARAM lParam) {
+    m_valueReport.reset(reinterpret_cast<ModelCompare::ValueDiffReport*>(lParam));
+
+    CString s;
+    s.Format(_T("%zu file(s) with value differences  |  %zu total  |  %zu scanned"),
+        m_valueReport->totalFilesWithDiffs, m_valueReport->totalValueDifferences,
+        m_valueReport->totalFilesScanned);
+    UpdateSummary(s);
+
+    m_tabSpecVal.SetReport(m_valueReport);
+    m_btnCompareValues.EnableWindow(TRUE);
+
+    m_tabMain.SetCurSel(2);
+    m_tabSpecId.ShowWindow(SW_HIDE);
+    m_tabXmlVal.ShowWindow(SW_HIDE);
+    m_tabSpecVal.ShowWindow(SW_SHOW);
+
+    m_btnCompare.SetWindowText(_T("Compare\nModels"));
+
+    CRect rcClient;
+    GetClientRect(&rcClient);
+    RepositionControls(rcClient.Width(), rcClient.Height());
+
+    return 0;
+}
+
 void CMainDlg::EnableCompareUI(bool enable) {
     m_btnBrowseLeft.EnableWindow(enable);
     m_btnBrowseRight.EnableWindow(enable);
@@ -252,16 +331,18 @@ void CMainDlg::RepositionControls(int cx, int cy) {
     const int GAP     = 6;
     const int LBL_W   = 150;
     const int BTN_W   = 65;
-    const int CMP_W   = 90;
+    const int CMP_W   = 85;
     const int CMP_H   = 50;
+    const int CMP_GAP = 6;
 
-    HDWP hDwp = ::BeginDeferWindowPos(8);
+    HDWP hDwp = ::BeginDeferWindowPos(12);
     if (!hDwp) return;
 
-    int cmpX = cx - M - CMP_W;
+    int cmpX2 = cx - M - CMP_W;
+    int cmpX1 = cmpX2 - CMP_GAP - CMP_W;
     int inputAreaH = ROW_H * 2 + GAP;
     int cmpY = M + (inputAreaH - CMP_H) / 2;
-    int maxInputRight = cmpX - 12;
+    int maxInputRight = cmpX1 - 12;
     int editW = maxInputRight - (M + LBL_W + GAP + GAP + BTN_W);
     if (editW < 100) editW = 100;
     int y = M;
@@ -278,7 +359,8 @@ void CMainDlg::RepositionControls(int cx, int cy) {
     hDwp = ::DeferWindowPos(hDwp, m_btnBrowseRight.GetSafeHwnd(), NULL, M + LBL_W + GAP + editW + GAP, y, BTN_W, ROW_H, SWP_NOZORDER | SWP_NOACTIVATE);
     y += ROW_H + GAP;
 
-    hDwp = ::DeferWindowPos(hDwp, m_btnCompare.GetSafeHwnd(), NULL, cmpX, cmpY, CMP_W, CMP_H, SWP_NOZORDER | SWP_NOACTIVATE);
+    hDwp = ::DeferWindowPos(hDwp, m_btnCompare.GetSafeHwnd(), NULL, cmpX1, cmpY, CMP_W, CMP_H, SWP_NOZORDER | SWP_NOACTIVATE);
+    hDwp = ::DeferWindowPos(hDwp, m_btnCompareValues.GetSafeHwnd(), NULL, cmpX2, cmpY, CMP_W, CMP_H, SWP_NOZORDER | SWP_NOACTIVATE);
 
     int summaryH = 22;
     hDwp = ::DeferWindowPos(hDwp, m_staticSummary.GetSafeHwnd(), NULL, M, y, cx - 2 * M, summaryH, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -325,9 +407,19 @@ BOOL CMainDlg::OnEraseBkgnd(CDC* pDC) {
 }
 
 void CMainDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct) {
-    if (nIDCtl != IDC_BTN_COMPARE) { CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct); return; }
+    if (nIDCtl != IDC_BTN_COMPARE && nIDCtl != IDC_BTN_COMPARE_VALUES) {
+        CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
+        return;
+    }
 
-    COLORREF bgColor = CLR_ACCENT_BLUE, pressedColor = RGB(0, 90, 210);
+    COLORREF bgColor, pressedColor;
+    if (nIDCtl == IDC_BTN_COMPARE_VALUES) {
+        bgColor = CLR_ACCENT_GREEN;
+        pressedColor = RGB(15, 110, 65);
+    } else {
+        bgColor = CLR_ACCENT_BLUE;
+        pressedColor = RGB(0, 90, 210);
+    }
     int cornerRadius = 14;
 
     CDC* pDC = CDC::FromHandle(lpDrawItemStruct->hDC); CRect rect = lpDrawItemStruct->rcItem; UINT state = lpDrawItemStruct->itemState;

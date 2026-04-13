@@ -31,6 +31,7 @@ struct XmlNodeInfo {
     std::string valEditable;
     std::string valDatatype;
     std::string paramId;
+    std::unordered_map<std::string, std::string> attributes;
 
     std::string CompositeKey() const {
         return "G:" + groupId + "|S:" + specId + "|V:" + valId;

@@ -15,6 +15,7 @@ FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     LTEXT           "Left Model (Reference):", IDC_STATIC_LEFT_LABEL, 8, 10, 120, 10
     EDITTEXT        IDC_EDIT_LEFT_PATH, 132, 8, 300, 14, ES_AUTOHSCROLL | ES_READONLY
+
     PUSHBUTTON      "Browse...", IDC_BTN_BROWSE_LEFT, 436, 7, 50, 16
 
     LTEXT           "Right Model (Target):", IDC_STATIC_RIGHT_LABEL, 8, 28, 120, 10
@@ -22,6 +23,7 @@ BEGIN
     PUSHBUTTON      "Browse...", IDC_BTN_BROWSE_RIGHT, 436, 25, 50, 16
 
     PUSHBUTTON      "Compare\nModels", IDC_BTN_COMPARE, 492, 7, 60, 34, BS_MULTILINE
+    PUSHBUTTON      "Compare\nValues", IDC_BTN_COMPARE_VALUES, 492, 7, 60, 34, BS_MULTILINE
 
     LTEXT           "Select two model folders and click Compare.", IDC_STATIC_SUMMARY, 8, 48, 544, 10
 
@@ -76,6 +78,11 @@ STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
+    LTEXT           "Diff Files", IDC_STATIC_VC_FILES_HEADER, 0, 0, 130, 10
+    CONTROL         "", IDC_LIST_VC_FILES, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP, 0, 14, 130, 276
+
+    LTEXT           "Value Differences", IDC_STATIC_VC_MISMATCH_HEADER, 137, 0, 403, 10
+    CONTROL         "", IDC_LIST_VC_MISMATCHES, "SysListView32", LVS_REPORT | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 137, 14, 403, 276
 END
 
 /////////////////////////////////////////////////////////////////////////////
