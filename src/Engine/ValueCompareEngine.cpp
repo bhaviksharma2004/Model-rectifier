@@ -40,7 +40,8 @@ ValueDiffReport ValueCompareEngine::CompareModels(const std::filesystem::path& l
             if (fileResult.HasDifferences()) {
                 report.fileResults.push_back(std::move(fileResult));
                 report.totalFilesWithDiffs++;
-                report.totalValueDifferences += report.fileResults.back().differences.size();
+                for (const auto& entry : report.fileResults.back().differences)
+                    report.totalValueDifferences += entry.differingProperties.size();
             }
         }
     }

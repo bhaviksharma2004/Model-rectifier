@@ -473,7 +473,7 @@ void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
     CDialogEx::OnSize(nType, cx, cy);
     if (cx <= 0 || cy <= 0) return;
 
-    const double LEFT_PANEL_RATIO = 0.25;
+    const double LEFT_PANEL_RATIO = 0.20;
     const int HDR_H    = 22;
     const int GAP      = 6;
     const int VIEW_ALL_W = 120;

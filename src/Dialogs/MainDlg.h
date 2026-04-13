@@ -1,6 +1,3 @@
-
-
-
 #pragma once
 
 #include "Engine/DiffTypes.h"
@@ -11,6 +8,7 @@
 #include "TabSpecValueCompareDlg.h"
 #include <memory>
 #include <vector>
+#include <thread>
 
 #define WM_COMPARE_COMPLETE  (WM_USER + 100)
 #define WM_VALIDATE_COMPLETE (WM_USER + 101)
@@ -21,19 +19,13 @@ class CMainDlg : public CDialogEx {
 public:
     CMainDlg(CWnd* pParent = nullptr);
     enum { IDD = IDD_MODELCOMPARE_DIALOG };
-
-    CString GetLeftPath() const;
-    CString GetRightPath() const;
-
 protected:
     virtual void DoDataExchange(CDataExchange* pDX) override;
     virtual BOOL OnInitDialog() override;
 
-
     afx_msg void OnBnClickedBrowseLeft();
     afx_msg void OnBnClickedBrowseRight();
     afx_msg void OnBnClickedCompare();
-    afx_msg void OnBnClickedCompareValues();
 
     afx_msg void OnSize(UINT nType, int cx, int cy);
     afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
@@ -47,18 +39,17 @@ protected:
     afx_msg LRESULT OnCompareComplete(WPARAM wParam, LPARAM lParam);
     afx_msg LRESULT OnValidateComplete(WPARAM wParam, LPARAM lParam);
     afx_msg LRESULT OnValueCompareComplete(WPARAM wParam, LPARAM lParam);
+    afx_msg void OnDestroy();
     afx_msg void OnClose();
 
     DECLARE_MESSAGE_MAP()
 
 private:
-
     CEdit       m_editLeftPath;
     CEdit       m_editRightPath;
     CButton     m_btnBrowseLeft;
     CButton     m_btnBrowseRight;
     CButton     m_btnCompare;
-    CButton     m_btnCompareValues;
     CStatic     m_staticSummary;
 
     CTabCtrl    m_tabMain;
@@ -78,6 +69,9 @@ private:
     void RunValidation();
     void RunValueCompare();
 
+    std::thread m_workerThread;
+    bool m_bClosing = false;
+
     CFont  m_uiFont;
     CFont  m_headerFont;
 
@@ -85,11 +79,9 @@ private:
     CBrush m_brushPanelBg;
     CBrush m_brushEditBg;
 
-
     static constexpr COLORREF CLR_DIALOG_BG     = RGB(243, 243, 248);
     static constexpr COLORREF CLR_EDIT_BG       = RGB(255, 255, 255);
     static constexpr COLORREF CLR_TEXT_PRIMARY  = RGB(30, 30, 40);
     static constexpr COLORREF CLR_TEXT_SECONDARY = RGB(90, 95, 110);
     static constexpr COLORREF CLR_ACCENT_BLUE   = RGB(13, 110, 253);
-    static constexpr COLORREF CLR_ACCENT_GREEN  = RGB(25, 135, 84);
 };

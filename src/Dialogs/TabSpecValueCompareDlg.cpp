@@ -101,29 +101,33 @@ void CTabSpecValueCompareDlg::OnSize(UINT nType, int cx, int cy) {
     CDialogEx::OnSize(nType, cx, cy);
     if (!m_listFiles.GetSafeHwnd()) return;
 
+    const double LEFT_PANEL_RATIO = 0.20;
     const int M = 10;
-    const int LEFT_WIDTH = 220;
     const int HEADER_H = 22;
+    const int GAP = 6;
 
-    int rightX = M + LEFT_WIDTH + M;
-    int rightW = cx - rightX - M;
+    int fileListW = (int)((cx - GAP) * LEFT_PANEL_RATIO);
+    if (fileListW < 150) fileListW = 150;
+
+    int rightX = fileListW + GAP;
+    int rightW = cx - rightX;
     if (rightW < 100) rightW = 100;
 
-    int listH = cy - M - HEADER_H;
+    int listH = cy - HEADER_H;
     if (listH < 50) listH = 50;
 
     HDWP hDwp = ::BeginDeferWindowPos(4);
     if (!hDwp) return;
 
     hDwp = ::DeferWindowPos(hDwp, m_staticFilesHeader.GetSafeHwnd(), NULL,
-        M, M, LEFT_WIDTH, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        0, 0, fileListW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
     hDwp = ::DeferWindowPos(hDwp, m_listFiles.GetSafeHwnd(), NULL,
-        M, M + HEADER_H, LEFT_WIDTH, listH, SWP_NOZORDER | SWP_NOACTIVATE);
+        0, HEADER_H, fileListW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
 
     hDwp = ::DeferWindowPos(hDwp, m_staticMismatchHeader.GetSafeHwnd(), NULL,
-        rightX, M, rightW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
+        rightX, 0, rightW, HEADER_H, SWP_NOZORDER | SWP_NOACTIVATE);
     hDwp = ::DeferWindowPos(hDwp, m_listMismatches.GetSafeHwnd(), NULL,
-        rightX, M + HEADER_H, rightW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
+        rightX, HEADER_H, rightW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
 
     ::EndDeferWindowPos(hDwp);
     ResizeListColumns();
@@ -244,8 +248,8 @@ void CTabSpecValueCompareDlg::OnMismatchListCustomDraw(NMHDR* pNMHDR, LRESULT* p
         *pResult = CDRF_NOTIFYITEMDRAW;
         break;
     case CDDS_ITEMPREPAINT:
-        pLVCD->clrTextBk = CLR_MODIFIED_BG;
-        pLVCD->clrText = CLR_MODIFIED_TXT;
+        pLVCD->clrTextBk = (pLVCD->nmcd.dwItemSpec % 2 == 0) ? RGB(250, 250, 255) : RGB(255, 255, 255);
+        pLVCD->clrText = CLR_TEXT_PRIMARY;
         *pResult = CDRF_DODEFAULT;
         break;
     }

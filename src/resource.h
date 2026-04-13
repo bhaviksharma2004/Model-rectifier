@@ -50,9 +50,6 @@
 #define IDC_BTN_VAL_VIEW_ALL              1206
 #define IDC_BTN_VAL_CORRUPT_INFO          1207
 
-// Top Section — Compare Values Button (Main Dialog)
-#define IDC_BTN_COMPARE_VALUES            1300
-
 // Spec Value Compare Tab — Unique IDs
 #define IDC_STATIC_VC_FILES_HEADER        1302
 #define IDC_LIST_VC_FILES                 1303

@@ -17,7 +17,6 @@ enum class ValidationIssueType {
     DuplicateSpecId,
     DuplicateValId,
 
-    
     MissingRequiredAttribute,
     OrphanedElement,
     UnrecognizedTag,
@@ -27,8 +26,6 @@ enum class ValidationIssueType {
 struct ValidationIssue {
     ValidationIssueType type;
     std::string description;        
-
-    
     std::string groupId;
     std::string groupName;
     std::string specId;
@@ -36,10 +33,8 @@ struct ValidationIssue {
     std::string valId;
     std::string valName;
     std::string elementTag;         
+    int lineNumber = -1;    
 
-    int         lineNumber = -1;    
-
-    
     bool IsDuplicate() const {
         return type == ValidationIssueType::DuplicateGroupId
             || type == ValidationIssueType::DuplicateSpecId
@@ -47,21 +42,15 @@ struct ValidationIssue {
     }
 };
 
-
-
-
 struct FileValidationResult {
     std::filesystem::path absolutePath;
     std::filesystem::path relativePath;
-
     
     bool        isCorrupt = false;
     std::string corruptionDetail;       
-
     
     std::vector<ValidationIssue> issues;
 
-    
     std::vector<CString> cachedLines;
     CString              cachedFullText;
 

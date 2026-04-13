@@ -23,7 +23,6 @@ BEGIN
     PUSHBUTTON      "Browse...", IDC_BTN_BROWSE_RIGHT, 436, 25, 50, 16
 
     PUSHBUTTON      "Compare\nModels", IDC_BTN_COMPARE, 492, 7, 60, 34, BS_MULTILINE
-    PUSHBUTTON      "Compare\nValues", IDC_BTN_COMPARE_VALUES, 492, 7, 60, 34, BS_MULTILINE
 
     LTEXT           "Select two model folders and click Compare.", IDC_STATIC_SUMMARY, 8, 48, 544, 10
 
