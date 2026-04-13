@@ -3,6 +3,7 @@
 #include "XmlViewerDlg.h"
 #include "Engine/XmlApplyEngine.h"
 #include <UxTheme.h>
+#include <cctype>
 
 enum MismatchCol {
     COL_KEY = 0,

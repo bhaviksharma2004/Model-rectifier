@@ -6,6 +6,7 @@
 #include "TabXmlValidationDlg.h"
 #include "XmlViewerDlg.h"
 #include <UxTheme.h>
+#include <cctype>
 
 enum IssueCol {
     COL_KEY = 0,
