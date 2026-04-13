@@ -116,7 +116,7 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     SetupListColumns();
 
     // ── Row height spacer for issue list ──
-    m_imageListIssues.Create(1, 40, ILC_COLOR32, 1, 1);
+    m_imageListIssues.Create(1, 48, ILC_COLOR32, 1, 1);
     m_listIssues.SetImageList(&m_imageListIssues, LVSIL_SMALL);
 
     // ── Explorer theme for modern look ──
@@ -194,6 +194,8 @@ void CTabXmlValidationDlg::PopulateFileLists() {
         int idx = m_listRightFiles.InsertItem(i, name);
         m_listRightFiles.SetItemData(idx, (DWORD_PTR)i);
     }
+    
+    ResizeListColumns();
 }
 
 // =============================================================================
@@ -278,6 +280,8 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
     }
 
     m_btnViewAll.EnableWindow(!fr.issues.empty());
+    
+    ResizeListColumns();
 }
 
 void CTabXmlValidationDlg::ClearIssueList() {
@@ -505,11 +509,11 @@ void CTabXmlValidationDlg::ResizeListColumns() {
     // File lists: single column fills width
     CRect leftRect;
     m_listLeftFiles.GetClientRect(&leftRect);
-    m_listLeftFiles.SetColumnWidth(0, leftRect.Width());
+    m_listLeftFiles.SetColumnWidth(0, leftRect.Width() - 2);
 
     CRect rightRect;
     m_listRightFiles.GetClientRect(&rightRect);
-    m_listRightFiles.SetColumnWidth(0, rightRect.Width());
+    m_listRightFiles.SetColumnWidth(0, rightRect.Width() - 2);
 
     // Issue list: proportional columns
     CRect issueRect;
@@ -524,7 +528,7 @@ void CTabXmlValidationDlg::ResizeListColumns() {
             w[i] = (int)(totalWidth * colRatios[i]);
             sum += w[i];
         }
-        w[3] = totalWidth - sum;
+        w[3] = totalWidth - sum - 3;
         for (int i = 0; i < 4; ++i)
             m_listIssues.SetColumnWidth(i, w[i]);
     }
@@ -726,27 +730,39 @@ void CTabXmlValidationDlg::OnIssueListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult
             CPen* pOldPen = pDC->SelectObject(&pen);
             pDC->RoundRect(&rect, CPoint(8, 8));
 
-            CString text = m_listIssues.GetItemText(row, subItem);
             pDC->SetBkMode(TRANSPARENT);
             pDC->SetTextColor(RGB(255, 255, 255));
 
-            LOGFONT lf;
-            m_listIssues.GetFont()->GetLogFont(&lf);
-            int buttonWidth = rect.Width();
-            if (buttonWidth < 85) {
-                double scale = (double)buttonWidth / 85.0;
-                if (scale < 0.65) scale = 0.65;
-                lf.lfHeight = (LONG)(lf.lfHeight * scale);
-            }
-            CFont dynamicFont;
-            dynamicFont.CreateFontIndirect(&lf);
-            CFont* pOldFont = pDC->SelectObject(&dynamicFont);
-            pDC->DrawText(text, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            LOGFONT lfIcon = {0};
+            wcscpy_s(lfIcon.lfFaceName, _T("Segoe MDL2 Assets"));
+            lfIcon.lfHeight = -16;
+            CFont iconFont;
+            iconFont.CreateFontIndirect(&lfIcon);
+
+            CFont* pOldFont = pDC->SelectObject(&iconFont);
+            pDC->DrawText(_T("\xE890"), &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
             pDC->SelectObject(pOldFont);
             pDC->SelectObject(pOldBrush);
             pDC->SelectObject(pOldPen);
 
+            *pResult = CDRF_SKIPDEFAULT;
+            return;
+        }
+
+        if (displayIdx >= 0 && subItem == COL_DESC) {
+            CDC* pDC = CDC::FromHandle(pCD->nmcd.hdc);
+            CRect rect;
+            m_listIssues.GetSubItemRect(row, subItem, LVIR_BOUNDS, rect);
+            pDC->FillSolidRect(&rect, bg);
+            rect.DeflateRect(6, 4);
+            
+            CString text = m_listIssues.GetItemText(row, subItem);
+            pDC->SetBkColor(bg);
+            pDC->SetTextColor(txt);
+            CFont* pOldFont = pDC->SelectObject(m_listIssues.GetFont());
+            pDC->DrawText(text, &rect, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX | DT_END_ELLIPSIS | DT_EDITCONTROL);
+            pDC->SelectObject(pOldFont);
             *pResult = CDRF_SKIPDEFAULT;
             return;
         }

@@ -173,7 +173,7 @@ void CTabSpecIdCompareDlg::ResizeListColumns() {
 
     CRect fileRect;
     m_listFiles.GetClientRect(&fileRect);
-    m_listFiles.SetColumnWidth(0, fileRect.Width());
+    m_listFiles.SetColumnWidth(0, fileRect.Width() - 2);
 
     CRect mmRect;
     m_listMismatches.GetClientRect(&mmRect);
@@ -184,7 +184,7 @@ void CTabSpecIdCompareDlg::ResizeListColumns() {
     if (totalWidth > 0) {
         int w[7], sum = 0;
         for (int i=0; i<6; ++i) { w[i] = (int)(totalWidth * colRatios[i]); sum += w[i]; }
-        w[6] = totalWidth - sum;
+        w[6] = totalWidth - sum - 3;
         for (int i=0; i<7; ++i) m_listMismatches.SetColumnWidth(i, w[i]);
     }
 }
@@ -222,6 +222,8 @@ void CTabSpecIdCompareDlg::PopulateFileList() {
         m_listFiles.SetItemData(idx, (DWORD_PTR)i);
         displayIndex++;
     }
+    
+    ResizeListColumns();
 }
 
 void CTabSpecIdCompareDlg::OnFileListItemChanged(NMHDR* pNMHDR, LRESULT* pResult) {
@@ -304,6 +306,8 @@ void CTabSpecIdCompareDlg::PopulateMismatchList(int fileIndex) {
     m_btnApplyAll.EnableWindow(!m_displayDiffs.empty());
     m_btnApplySelection.EnableWindow(!m_displayDiffs.empty());
     m_btnViewXml.EnableWindow(TRUE);
+    
+    ResizeListColumns();
 }
 
 void CTabSpecIdCompareDlg::ClearMismatchList() {
@@ -595,11 +599,28 @@ void CTabSpecIdCompareDlg::OnMismatchListCustomDraw(NMHDR* pNMHDR, LRESULT* pRes
             pDC->FillSolidRect(&rect, bg); rect.DeflateRect(12, 6);
             COLORREF btnColor = (subItem == COL_APPLY) ? (m_displayDiffs[displayIdx].isMissingInRight ? CLR_ACCENT_GREEN : CLR_ACCENT_RED) : CLR_ACCENT_BLUE;
             CBrush brush(btnColor); CPen pen(PS_SOLID, 1, btnColor); CBrush* pOldBrush = pDC->SelectObject(&brush); CPen* pOldPen = pDC->SelectObject(&pen);
-            pDC->RoundRect(&rect, CPoint(8, 8)); CString text = m_listMismatches.GetItemText(row, subItem); pDC->SetBkMode(TRANSPARENT); pDC->SetTextColor(RGB(255, 255, 255));
-            LOGFONT lf; m_listMismatches.GetFont()->GetLogFont(&lf);
-            int buttonWidth = rect.Width(); if (buttonWidth < 85) { double scale = (double)buttonWidth / 85.0; if (scale < 0.65) scale = 0.65; lf.lfHeight = (LONG)(lf.lfHeight * scale); }
-            CFont dynamicFont; dynamicFont.CreateFontIndirect(&lf); CFont* pOldFont = pDC->SelectObject(&dynamicFont);
-            pDC->DrawText(text, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            pDC->RoundRect(&rect, CPoint(8, 8)); pDC->SetBkMode(TRANSPARENT); pDC->SetTextColor(RGB(255, 255, 255));
+            
+            CFont iconFont;
+            CFont dynamicFont;
+            CFont* pOldFont = nullptr;
+            CString textToDraw;
+            
+            if (subItem == COL_VIEW) {
+                LOGFONT lfIcon = {0};
+                wcscpy_s(lfIcon.lfFaceName, _T("Segoe MDL2 Assets"));
+                lfIcon.lfHeight = -16;
+                iconFont.CreateFontIndirect(&lfIcon);
+                pOldFont = pDC->SelectObject(&iconFont);
+                textToDraw = _T("\xE890");
+            } else {
+                textToDraw = m_listMismatches.GetItemText(row, subItem);
+                LOGFONT lf; m_listMismatches.GetFont()->GetLogFont(&lf);
+                int buttonWidth = rect.Width(); if (buttonWidth < 85) { double scale = (double)buttonWidth / 85.0; if (scale < 0.65) scale = 0.65; lf.lfHeight = (LONG)(lf.lfHeight * scale); }
+                dynamicFont.CreateFontIndirect(&lf); pOldFont = pDC->SelectObject(&dynamicFont);
+            }
+            
+            pDC->DrawText(textToDraw, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             pDC->SelectObject(pOldFont); pDC->SelectObject(pOldBrush); pDC->SelectObject(pOldPen); *pResult = CDRF_SKIPDEFAULT; return;
         }
         pCD->clrTextBk = bg; pCD->clrText = txt; *pResult = CDRF_DODEFAULT; return;

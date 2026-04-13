@@ -74,9 +74,9 @@ BOOL CMainDlg::OnInitDialog() {
     m_tabMain.InsertItem(1, _T("XML File Validation"));
     m_tabMain.InsertItem(2, _T("Spec Value Compare"));
 
-    m_tabSpecId.Create(IDD_TAB_SPEC_ID_COMPARE, &m_tabMain);
-    m_tabXmlVal.Create(IDD_TAB_XML_VALIDATION, &m_tabMain);
-    m_tabSpecVal.Create(IDD_TAB_SPEC_VALUE_COMPARE, &m_tabMain);
+    m_tabSpecId.Create(IDD_TAB_SPEC_ID_COMPARE, this);
+    m_tabXmlVal.Create(IDD_TAB_XML_VALIDATION, this);
+    m_tabSpecVal.Create(IDD_TAB_SPEC_VALUE_COMPARE, this);
 
     m_tabSpecId.ShowWindow(SW_SHOW);
     m_tabXmlVal.ShowWindow(SW_HIDE);
@@ -291,7 +291,8 @@ void CMainDlg::RepositionControls(int cx, int cy) {
     ::EndDeferWindowPos(hDwp);
 
     CRect rcTab;
-    m_tabMain.GetClientRect(&rcTab);
+    m_tabMain.GetWindowRect(&rcTab);
+    ScreenToClient(&rcTab);
     m_tabMain.AdjustRect(FALSE, &rcTab);
     
     int contentX = rcTab.left + 2;
