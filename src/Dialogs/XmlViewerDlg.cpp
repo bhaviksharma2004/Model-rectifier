@@ -6,6 +6,8 @@
 #include <richedit.h>
 #include <dwmapi.h>
 #include <CommCtrl.h>
+#include <map>
+#include <algorithm>
 
 #pragma comment(lib, "dwmapi.lib")
 
@@ -284,28 +286,28 @@ void CXmlViewerDlg::LoadAndHighlight() {
 
         
         m_richEdit.SetRedraw(FALSE);
-        m_richEdit.SetWindowText(fullText);
 
-        m_richEdit.SetSel(0, -1);
-        CHARFORMAT2 cfAll = {};
-        cfAll.cbSize = sizeof(cfAll);
-        cfAll.dwMask = CFM_COLOR | CFM_BACKCOLOR;
-        cfAll.crTextColor = Theme::Get()->TextLight();
-        cfAll.crBackColor = Theme::Get()->BgDark();
-        cfAll.dwEffects = 0;
-        m_richEdit.SetSelectionCharFormat(cfAll);
-
-        
+        // Build flat text for syntax range collection (uses \n separators)
+        CString flatText;
         {
-            CString reText;
-            m_richEdit.GetWindowText(reText);
-            reText.Replace(_T("\r\n"), _T("\n"));
-
-            std::vector<ColorRange> syntaxRanges;
-            syntaxRanges.reserve(lines.size() * 4);
-            CollectSyntaxRanges(reText, syntaxRanges);
-            ApplyColorRanges(syntaxRanges);
+            size_t totalChars = 0;
+            for (const auto& l : lines)
+                totalChars += (size_t)l.GetLength() + 1;
+            flatText.Preallocate((int)totalChars + 1);
+            for (const auto& l : lines) {
+                flatText.Append(l);
+                flatText.Append(_T("\n"));
+            }
         }
+
+        // Collect syntax color ranges from flat text
+        std::vector<ColorRange> syntaxRanges;
+        syntaxRanges.reserve(lines.size() * 4);
+        CollectSyntaxRanges(flatText, syntaxRanges);
+
+        // Build RTF with all syntax colors baked in, stream in once
+        CStringA rtfDoc = BuildRtfFromRanges(lines, syntaxRanges);
+        StreamInRtf(rtfDoc);
 
         int scrollToLine = -1;
 
@@ -480,6 +482,185 @@ void CXmlViewerDlg::ApplyColorRanges(const std::vector<ColorRange>& ranges) {
         m_richEdit.SetSelectionCharFormat(cf);
     }
 }
+
+// ─── RTF Stream-In Helpers ─────────────────────────────────────
+
+struct RtfStreamData {
+    const char* pBuf;
+    int         len;
+    int         pos;
+};
+
+static DWORD CALLBACK RtfStreamInCallback(DWORD_PTR dwCookie, LPBYTE pbBuff,
+                                           LONG cb, LONG* pcb) {
+    auto* data = reinterpret_cast<RtfStreamData*>(dwCookie);
+    int remaining = data->len - data->pos;
+    int toRead = min((int)cb, remaining);
+    if (toRead > 0) {
+        memcpy(pbBuff, data->pBuf + data->pos, toRead);
+        data->pos += toRead;
+    }
+    *pcb = toRead;
+    return 0;
+}
+
+void CXmlViewerDlg::StreamInRtf(const CStringA& rtf) {
+    RtfStreamData streamData;
+    streamData.pBuf = rtf.GetString();
+    streamData.len = rtf.GetLength();
+    streamData.pos = 0;
+
+    EDITSTREAM es = {};
+    es.dwCookie = (DWORD_PTR)&streamData;
+    es.pfnCallback = RtfStreamInCallback;
+
+    m_richEdit.StreamIn(SF_RTF, es);
+}
+
+
+static void AppendRtfColorRef(CStringA& rtf, COLORREF c) {
+    CStringA part;
+    part.Format("\\red%d\\green%d\\blue%d;",
+        GetRValue(c), GetGValue(c), GetBValue(c));
+    rtf += part;
+}
+
+CStringA CXmlViewerDlg::BuildRtfFromRanges(const std::vector<CString>& lines,
+                                            const std::vector<ColorRange>& syntaxRanges)
+{
+    // Build color table: index 0 = default text, 1 = bg (used in \highlight)
+    // Then collect unique syntax colors
+    COLORREF defaultText = Theme::Get()->TextLight();
+    COLORREF bgColor = Theme::Get()->BgDark();
+
+    std::vector<COLORREF> colorTable;
+    colorTable.push_back(defaultText);  // index 0
+    colorTable.push_back(bgColor);      // index 1
+
+    // Map COLORREF -> color table index
+    std::map<COLORREF, int> colorMap;
+    colorMap[defaultText] = 0;
+    colorMap[bgColor] = 1;
+
+    for (const auto& r : syntaxRanges) {
+        if (colorMap.find(r.color) == colorMap.end()) {
+            int idx = (int)colorTable.size();
+            colorMap[r.color] = idx;
+            colorTable.push_back(r.color);
+        }
+    }
+
+    // Build RTF header
+    CStringA rtf;
+    rtf.Preallocate(1024 * 1024); // 1MB initial reserve
+
+    rtf += "{\\rtf1\\ansi\\deff0";
+
+    // Font table — Consolas monospace
+    rtf += "{\\fonttbl{\\f0\\fmodern\\fcharset0 Consolas;}}";
+
+    // Color table
+    rtf += "{\\colortbl ;";
+    for (const auto& c : colorTable) {
+        AppendRtfColorRef(rtf, c);
+    }
+    rtf += "}";
+
+    // Default formatting: font 0, size (twips), colors
+    // RICH_EDIT_CF_HEIGHT is in twips/10, RTF \fs is in half-points
+    // 210 twips = 10.5pt -> \fs21
+    CStringA fmtStart;
+    fmtStart.Format("\\f0\\fs%d\\cf%d\\highlight%d ",
+        RICH_EDIT_CF_HEIGHT / 10,  // twips to half-points
+        1,   // default text color (1-based in RTF: colorTable[0])
+        2);  // background highlight (1-based: colorTable[1])
+    rtf += fmtStart;
+
+    // Create sorted copy of range pointers for efficient walking
+    std::vector<const ColorRange*> sorted;
+    sorted.reserve(syntaxRanges.size());
+    for (const auto& r : syntaxRanges) {
+        sorted.push_back(&r);
+    }
+    std::sort(sorted.begin(), sorted.end(),
+        [](const ColorRange* a, const ColorRange* b) { return a->start < b->start; });
+
+    // Walk text character by character, emitting RTF color switches at range boundaries
+    int rangeIdx = 0;
+    int totalRanges = (int)sorted.size();
+    int charPos = 0;
+
+    // Track which range we're inside (for end detection)
+    int activeRangeEnd = -1;
+
+    CStringA numBuf;
+
+    for (int lineIdx = 0; lineIdx < (int)lines.size(); lineIdx++) {
+        const CString& line = lines[lineIdx];
+        int lineLen = line.GetLength();
+
+        for (int ci = 0; ci < lineLen; ci++) {
+            // Check if we're exiting an active range
+            if (activeRangeEnd >= 0 && charPos >= activeRangeEnd) {
+                numBuf.Format("\\cf%d ", colorMap[defaultText] + 1);
+                rtf += numBuf;
+                activeRangeEnd = -1;
+            }
+
+            // Check if we're entering a new range
+            if (rangeIdx < totalRanges && charPos >= sorted[rangeIdx]->start) {
+                int rtfColorIdx = colorMap[sorted[rangeIdx]->color] + 1; // 1-based
+                numBuf.Format("\\cf%d ", rtfColorIdx);
+                rtf += numBuf;
+                activeRangeEnd = sorted[rangeIdx]->end;
+                rangeIdx++;
+            }
+
+            // Emit the character with RTF escaping
+            TCHAR wc = line[ci];
+            if (wc == _T('\\')) {
+                rtf += "\\\\";
+            } else if (wc == _T('{')) {
+                rtf += "\\{";
+            } else if (wc == _T('}')) {
+                rtf += "\\}";
+            } else if ((unsigned short)wc > 127) {
+                // Unicode character
+                numBuf.Format("\\u%d?", (short)wc);
+                rtf += numBuf;
+            } else {
+                rtf += (char)wc;
+            }
+
+            charPos++;
+        }
+
+        // End of line — emit \par for newline (except after last line)
+        // Also advance charPos for the \n that CollectSyntaxRanges counts
+        if (lineIdx < (int)lines.size() - 1) {
+            // Check if range boundary falls on the newline char
+            if (activeRangeEnd >= 0 && charPos >= activeRangeEnd) {
+                numBuf.Format("\\cf%d ", colorMap[defaultText] + 1);
+                rtf += numBuf;
+                activeRangeEnd = -1;
+            }
+            if (rangeIdx < totalRanges && charPos >= sorted[rangeIdx]->start) {
+                int rtfColorIdx = colorMap[sorted[rangeIdx]->color] + 1;
+                numBuf.Format("\\cf%d ", rtfColorIdx);
+                rtf += numBuf;
+                activeRangeEnd = sorted[rangeIdx]->end;
+                rangeIdx++;
+            }
+
+            rtf += "\\par\r\n";
+            charPos++; // for the \n
+        }
+    }
+
+    rtf += "}";
+    return rtf;
+}
+
 
 
 int CXmlViewerDlg::FindValLine(const std::vector<CString>& lines,

@@ -89,6 +89,9 @@ private:
     void LoadAndHighlight();
     void CollectSyntaxRanges(const CString& text, std::vector<ColorRange>& ranges);
     void ApplyColorRanges(const std::vector<ColorRange>& ranges);
+    CStringA BuildRtfFromRanges(const std::vector<CString>& lines,
+                                const std::vector<ColorRange>& syntaxRanges);
+    void StreamInRtf(const CStringA& rtf);
 
     int FindValLine(const std::vector<CString>& lines,
                     const std::string& groupId,
