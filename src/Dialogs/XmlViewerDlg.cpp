@@ -127,6 +127,7 @@ BOOL CXmlViewerDlg::OnInitDialog() {
     m_richEdit.SetReadOnly(TRUE);
     m_richEdit.SetFont(&m_codeFont);
     m_richEdit.SetBackgroundColor(FALSE, Theme::Get()->BgDark());
+    m_richEdit.LimitText(10 * 1024 * 1024);
 
     CHARFORMAT2 cfDefault = {};
     cfDefault.cbSize = sizeof(cfDefault);
