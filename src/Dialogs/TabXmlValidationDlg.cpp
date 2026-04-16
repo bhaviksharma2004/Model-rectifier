@@ -1,7 +1,4 @@
 
-
-
-
 #include "pch.h"
 #include "TabXmlValidationDlg.h"
 #include "XmlViewerDlg.h"
@@ -13,67 +10,42 @@
 #define FILE_LIST_COL_W          260
 
 #define COL_KEY_W                150
-#define COL_GROUP_W              110
-#define COL_SPEC_W               120
-#define COL_VALNAME_W            120
-#define COL_TYPE_W               100
-#define COL_DESC_W               250
+#define COL_DESC_W               350
 #define COL_VIEW_W               70
 
 #define LAYOUT_LEFT_PANEL_RATIO  0.20
 #define VIEW_ALL_BTN_W           120
 
 #define MIN_FILE_LIST_WIDTH      150
-#define MIN_HALF_HEIGHT          50
 #define CORRUPT_BTN_W            220
 #define CORRUPT_BTN_H            40
+#define CORRUPT_DESC_W           400
+#define CORRUPT_DESC_H           60
 
 #define FILE_LIST_MARGIN         2
 
 enum IssueCol {
     COL_KEY = 0,
-    COL_GROUP,
-    COL_SPEC,
-    COL_VALNAME,
-    COL_TYPE,
     COL_DESC,
     COL_VIEW
 };
 
-static CString ExtractEnglishName(const std::string& fullName) {
-    if (fullName.empty()) return _T("missing");
-    size_t pos = fullName.find("$$");
-    std::string eng = (pos != std::string::npos) ? fullName.substr(0, pos) : fullName;
-    
-    
-    while (!eng.empty() && std::isspace(static_cast<unsigned char>(eng.back()))) {
-        eng.pop_back();
-    }
-    return CString(eng.c_str());
-}
-
-
-
-
-
 BEGIN_MESSAGE_MAP(CTabXmlValidationDlg, CDialogEx)
     ON_WM_SIZE()
+    ON_WM_TIMER()
     ON_WM_CTLCOLOR()
     ON_WM_ERASEBKGND()
     ON_WM_DRAWITEM()
     ON_BN_CLICKED(IDC_BTN_VAL_VIEW_ALL, &CTabXmlValidationDlg::OnBnClickedViewAll)
 
-    ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST_VALFILES_LEFT,  &CTabXmlValidationDlg::OnLeftFileListItemChanged)
-    ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST_VALFILES_RIGHT, &CTabXmlValidationDlg::OnRightFileListItemChanged)
+    ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST_VALFILES_LEFT,  &CTabXmlValidationDlg::OnFileListItemChanged)
 
-    ON_NOTIFY(NM_CUSTOMDRAW, IDC_LIST_VALFILES_LEFT,  &CTabXmlValidationDlg::OnLeftFileListCustomDraw)
-    ON_NOTIFY(NM_CUSTOMDRAW, IDC_LIST_VALFILES_RIGHT, &CTabXmlValidationDlg::OnRightFileListCustomDraw)
+    ON_NOTIFY(NM_CUSTOMDRAW, IDC_LIST_VALFILES_LEFT,  &CTabXmlValidationDlg::OnFileListCustomDraw)
     ON_NOTIFY(NM_CUSTOMDRAW, IDC_LIST_VALISSUES,      &CTabXmlValidationDlg::OnIssueListCustomDraw)
 
     ON_NOTIFY(NM_CLICK,       IDC_LIST_VALISSUES, &CTabXmlValidationDlg::OnIssueListClick)
     ON_NOTIFY(LVN_GETINFOTIP, IDC_LIST_VALISSUES, &CTabXmlValidationDlg::OnIssueListGetInfoTip)
-    ON_NOTIFY(LVN_GETINFOTIP, IDC_LIST_VALFILES_LEFT,  &CTabXmlValidationDlg::OnLeftFileListGetInfoTip)
-    ON_NOTIFY(LVN_GETINFOTIP, IDC_LIST_VALFILES_RIGHT, &CTabXmlValidationDlg::OnRightFileListGetInfoTip)
+    ON_NOTIFY(LVN_GETINFOTIP, IDC_LIST_VALFILES_LEFT,  &CTabXmlValidationDlg::OnFileListGetInfoTip)
 END_MESSAGE_MAP()
 
 
@@ -91,10 +63,8 @@ CTabXmlValidationDlg::~CTabXmlValidationDlg() {}
 
 void CTabXmlValidationDlg::DoDataExchange(CDataExchange* pDX) {
     CDialogEx::DoDataExchange(pDX);
-    DDX_Control(pDX, IDC_STATIC_VALFILES_LEFT_HEADER,  m_staticLeftHeader);
-    DDX_Control(pDX, IDC_STATIC_VALFILES_RIGHT_HEADER, m_staticRightHeader);
-    DDX_Control(pDX, IDC_LIST_VALFILES_LEFT,            m_listLeftFiles);
-    DDX_Control(pDX, IDC_LIST_VALFILES_RIGHT,           m_listRightFiles);
+    DDX_Control(pDX, IDC_STATIC_VALFILES_LEFT_HEADER,  m_staticFileHeader);
+    DDX_Control(pDX, IDC_LIST_VALFILES_LEFT,            m_listFiles);
     DDX_Control(pDX, IDC_STATIC_VALISSUES_HEADER,       m_staticIssuesHeader);
     DDX_Control(pDX, IDC_LIST_VALISSUES,                m_listIssues);
     DDX_Control(pDX, IDC_BTN_VAL_VIEW_ALL,              m_btnViewAll);
@@ -122,11 +92,9 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     m_headerFont.CreateFontIndirect(&lfHeader);
 
     
-    m_listLeftFiles.SetFont(&m_uiFont);
-    m_listRightFiles.SetFont(&m_uiFont);
+    m_listFiles.SetFont(&m_uiFont);
     m_listIssues.SetFont(&m_uiFont);
-    m_staticLeftHeader.SetFont(&m_headerFont);
-    m_staticRightHeader.SetFont(&m_headerFont);
+    m_staticFileHeader.SetFont(&m_headerFont);
     m_staticIssuesHeader.SetFont(&m_headerFont);
 
     
@@ -145,119 +113,88 @@ BOOL CTabXmlValidationDlg::OnInitDialog() {
     m_staticBoundary.Create(_T(""), WS_CHILD | SS_GRAYFRAME, CRect(0,0,0,0), this, 2002);
 
     
-    m_staticLeftHeader.SetWindowText(_T("  Left Model"));
-    m_staticRightHeader.SetWindowText(_T("  Right Model"));
+    m_staticCorruptDesc.Create(_T(""), WS_CHILD | SS_CENTER | SS_NOPREFIX,
+        CRect(0, 0, 0, 0), this, 2003);
+    m_staticCorruptDesc.SetFont(&m_uiFont);
+
+    
+    m_staticFileHeader.SetWindowText(_T("  Model Files"));
     m_staticIssuesHeader.SetWindowText(_T("  Validation Issues"));
 
     
     SetupListColumns();
 
     
-    m_imageListIssues.Create(1, 48, ILC_COLOR32, 1, 1);
+    m_imageListIssues.Create(1, 40, ILC_COLOR32, 1, 1);
     m_listIssues.SetImageList(&m_imageListIssues, LVSIL_SMALL);
 
     
     ModifyStyle(0, WS_CLIPCHILDREN);
-    ::SetWindowTheme(m_listLeftFiles.GetSafeHwnd(), L"Explorer", NULL);
-    ::SetWindowTheme(m_listRightFiles.GetSafeHwnd(), L"Explorer", NULL);
-    ::SetWindowTheme(m_listIssues.GetSafeHwnd(), L"Explorer", NULL);
+    ::SetWindowTheme(m_listFiles.GetSafeHwnd(), L"Explorer", NULL);
+
+    m_listFiles.ModifyStyle(0, LVS_SINGLESEL);
+    m_listIssues.ModifyStyle(0, LVS_SINGLESEL);
 
     return TRUE;
 }
 
-
-
-
-
 void CTabXmlValidationDlg::SetupListColumns() {
     
     DWORD fStyle = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_INFOTIP;
-    m_listLeftFiles.SetExtendedStyle(m_listLeftFiles.GetExtendedStyle() | fStyle);
-    m_listLeftFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, FILE_LIST_COL_W);
-
-    m_listRightFiles.SetExtendedStyle(m_listRightFiles.GetExtendedStyle() | fStyle);
-    m_listRightFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, FILE_LIST_COL_W);
+    m_listFiles.SetExtendedStyle(m_listFiles.GetExtendedStyle() | fStyle);
+    m_listFiles.InsertColumn(0, _T("File Name"), LVCFMT_LEFT, FILE_LIST_COL_W);
 
     
     DWORD iStyle = LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES
                  | LVS_EX_DOUBLEBUFFER  | LVS_EX_INFOTIP;
     m_listIssues.SetExtendedStyle(m_listIssues.GetExtendedStyle() | iStyle);
     m_listIssues.InsertColumn(COL_KEY,     _T("Composite Key"), LVCFMT_LEFT,   COL_KEY_W);
-    m_listIssues.InsertColumn(COL_GROUP,   _T("Group"),         LVCFMT_LEFT,   COL_GROUP_W);
-    m_listIssues.InsertColumn(COL_SPEC,    _T("Spec"),          LVCFMT_LEFT,   COL_SPEC_W);
-    m_listIssues.InsertColumn(COL_VALNAME, _T("Val Name"),      LVCFMT_LEFT,   COL_VALNAME_W);
-    m_listIssues.InsertColumn(COL_TYPE,    _T("Type"),          LVCFMT_LEFT,   COL_TYPE_W);
     m_listIssues.InsertColumn(COL_DESC,    _T("Description"),   LVCFMT_LEFT,   COL_DESC_W);
     m_listIssues.InsertColumn(COL_VIEW,    _T("View"),          LVCFMT_CENTER, COL_VIEW_W);
 }
 
-
-
-
-
 void CTabXmlValidationDlg::SetValidationReport(
-    std::shared_ptr<ModelCompare::ValidationReport> report)
+    std::shared_ptr<ModelCompare::ModelValidationReport> report)
 {
     m_report = report;
-    m_selectedModel = SelectedModel::None;
     m_selectedFileIndex = -1;
-    PopulateFileLists();
+    PopulateFileList();
     ClearIssueList();
-    PopulateIssueList(SelectedModel::None, -1);
+    PopulateIssueList(-1);
 }
 
-
-
-
-
-void CTabXmlValidationDlg::PopulateFileLists() {
-    m_listLeftFiles.DeleteAllItems();
-    m_listRightFiles.DeleteAllItems();
+void CTabXmlValidationDlg::PopulateFileList() {
+    m_listFiles.DeleteAllItems();
     if (!m_report) return;
 
     
-    for (int i = 0; i < (int)m_report->leftReport.fileResults.size(); i++) {
-        const auto& fr = m_report->leftReport.fileResults[i];
+    for (int i = 0; i < (int)m_report->fileResults.size(); i++) {
+        const auto& fr = m_report->fileResults[i];
         CString name;
         name.Format(_T("%d. %s"), i + 1,
             CString(fr.relativePath.filename().wstring().c_str()).GetString());
-        int idx = m_listLeftFiles.InsertItem(i, name);
-        m_listLeftFiles.SetItemData(idx, (DWORD_PTR)i);
-    }
-
-    
-    for (int i = 0; i < (int)m_report->rightReport.fileResults.size(); i++) {
-        const auto& fr = m_report->rightReport.fileResults[i];
-        CString name;
-        name.Format(_T("%d. %s"), i + 1,
-            CString(fr.relativePath.filename().wstring().c_str()).GetString());
-        int idx = m_listRightFiles.InsertItem(i, name);
-        m_listRightFiles.SetItemData(idx, (DWORD_PTR)i);
+        int idx = m_listFiles.InsertItem(i, name);
+        m_listFiles.SetItemData(idx, (DWORD_PTR)i);
     }
     
     ResizeListColumns();
 }
 
-
-
-
-
-void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex) {
+void CTabXmlValidationDlg::PopulateIssueList(int fileIndex) {
     ClearIssueList();
-    m_selectedModel = model;
     m_selectedFileIndex = fileIndex;
 
-    const auto* modelReport = GetModelReport(model);
-    if (!modelReport || fileIndex < 0 || fileIndex >= (int)modelReport->fileResults.size()) {
+    if (!m_report || fileIndex < 0 || fileIndex >= (int)m_report->fileResults.size()) {
         m_btnViewAll.EnableWindow(FALSE);
         m_btnCorruptInfo.ShowWindow(SW_HIDE);
+        m_staticCorruptDesc.ShowWindow(SW_HIDE);
         m_staticBoundary.ShowWindow(SW_HIDE);
         m_listIssues.ShowWindow(SW_SHOW);
         m_staticIssuesHeader.SetWindowText(_T("  Validation Issues"));
         return;
     }
 
-    const auto& fr = modelReport->fileResults[fileIndex];
+    const auto& fr = m_report->fileResults[fileIndex];
 
     
     CString header;
@@ -274,12 +211,19 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
         m_btnCorruptInfo.SetWindowText(corruptText);
 
         
-        CString tip = CString(fr.corruptionDetail.c_str());
-        m_btnCorruptInfo.SetWindowText(corruptText);
+        CString descText;
+        if (fr.corruptionLineNumber > 0) {
+            descText.Format(_T("Line %d: %s"), fr.corruptionLineNumber,
+                CString(fr.corruptionDetail.c_str()).GetString());
+        } else {
+            descText = CString(fr.corruptionDetail.c_str());
+        }
+        m_staticCorruptDesc.SetWindowText(descText);
 
-        m_btnViewAll.EnableWindow(TRUE);  
+        m_btnViewAll.EnableWindow(TRUE);
         m_btnCorruptInfo.ShowWindow(SW_SHOW);
         m_btnCorruptInfo.BringWindowToTop();
+        m_staticCorruptDesc.ShowWindow(SW_SHOW);
 
         
         CRect rcClient; GetClientRect(&rcClient);
@@ -289,15 +233,12 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
 
     
     m_btnCorruptInfo.ShowWindow(SW_HIDE);
+    m_staticCorruptDesc.ShowWindow(SW_HIDE);
     m_staticBoundary.ShowWindow(SW_HIDE);
     m_listIssues.ShowWindow(SW_SHOW);
 
     for (int i = 0; i < (int)fr.issues.size(); i++) {
         const auto& issue = fr.issues[i];
-
-        CString groupStr = ExtractEnglishName(issue.groupName);
-        CString specStr = ExtractEnglishName(issue.specName);
-        CString valStr = ExtractEnglishName(issue.valName);
 
         
         std::string keyParts = "";
@@ -313,18 +254,6 @@ void CTabXmlValidationDlg::PopulateIssueList(SelectedModel model, int fileIndex)
         CString compositeKey = CString(keyParts.c_str());
 
         int idx = m_listIssues.InsertItem(i, compositeKey);
-
-        m_listIssues.SetItemText(idx, COL_GROUP, groupStr);
-        m_listIssues.SetItemText(idx, COL_SPEC, specStr);
-        m_listIssues.SetItemText(idx, COL_VALNAME, valStr);
-
-        
-        CString typeStr;
-        if (issue.IsDuplicate())
-            typeStr = _T("Duplicate ID");
-        else
-            typeStr = _T("Warning");
-        m_listIssues.SetItemText(idx, COL_TYPE, typeStr);
 
         
         m_listIssues.SetItemText(idx, COL_DESC,
@@ -346,48 +275,17 @@ void CTabXmlValidationDlg::ClearIssueList() {
     m_listIssues.DeleteAllItems();
 }
 
-
-
-
-
-void CTabXmlValidationDlg::OnLeftFileListItemChanged(NMHDR* pNMHDR, LRESULT* pResult) {
+void CTabXmlValidationDlg::OnFileListItemChanged(NMHDR* pNMHDR, LRESULT* pResult) {
     auto* pNM = reinterpret_cast<NMLISTVIEW*>(pNMHDR);
     *pResult = 0;
-    if (!(pNM->uChanged & LVIF_STATE) || !(pNM->uNewState & LVIS_SELECTED)) return;
-
-    
-    ClearFileSelection(SelectedModel::Left);
-
-    int fi = (int)m_listLeftFiles.GetItemData(pNM->iItem);
-    PopulateIssueList(SelectedModel::Left, fi);
-}
-
-void CTabXmlValidationDlg::OnRightFileListItemChanged(NMHDR* pNMHDR, LRESULT* pResult) {
-    auto* pNM = reinterpret_cast<NMLISTVIEW*>(pNMHDR);
-    *pResult = 0;
-    if (!(pNM->uChanged & LVIF_STATE) || !(pNM->uNewState & LVIS_SELECTED)) return;
-
-    
-    ClearFileSelection(SelectedModel::Right);
-
-    int fi = (int)m_listRightFiles.GetItemData(pNM->iItem);
-    PopulateIssueList(SelectedModel::Right, fi);
-}
-
-void CTabXmlValidationDlg::ClearFileSelection(SelectedModel exceptModel) {
-    if (exceptModel != SelectedModel::Left) {
-        int sel = m_listLeftFiles.GetNextItem(-1, LVNI_SELECTED);
-        if (sel >= 0) m_listLeftFiles.SetItemState(sel, 0, LVIS_SELECTED | LVIS_FOCUSED);
-    }
-    if (exceptModel != SelectedModel::Right) {
-        int sel = m_listRightFiles.GetNextItem(-1, LVNI_SELECTED);
-        if (sel >= 0) m_listRightFiles.SetItemState(sel, 0, LVIS_SELECTED | LVIS_FOCUSED);
+    if ((pNM->uChanged & LVIF_STATE) && (pNM->uNewState & LVIS_SELECTED)) {
+        int fi = (int)m_listFiles.GetItemData(pNM->iItem);
+        PopulateIssueList(fi);
+    } else if ((pNM->uChanged & LVIF_STATE) && m_listFiles.GetSelectedCount() == 0) {
+        m_selectedFileIndex = -1;
+        PopulateIssueList(-1);
     }
 }
-
-
-
-
 
 void CTabXmlValidationDlg::OnIssueListClick(NMHDR* pNMHDR, LRESULT* pResult) {
     auto* pNMItem = reinterpret_cast<NMITEMACTIVATE*>(pNMHDR);
@@ -408,20 +306,12 @@ void CTabXmlValidationDlg::OnIssueListClick(NMHDR* pNMHDR, LRESULT* pResult) {
     OpenXmlViewer(*fileResult, &fileResult->issues[issueIdx]);
 }
 
-
-
-
-
 void CTabXmlValidationDlg::OnBnClickedViewAll() {
     const auto* fileResult = GetSelectedFileResult();
     if (!fileResult) return;
 
-    OpenXmlViewer(*fileResult, nullptr);  
+    OpenXmlViewer(*fileResult, nullptr);
 }
-
-
-
-
 
 void CTabXmlValidationDlg::OpenXmlViewer(
     const ModelCompare::FileValidationResult& fileResult,
@@ -464,27 +354,11 @@ void CTabXmlValidationDlg::OpenXmlViewer(
     dlg.DoModal();
 }
 
-
-
-
-
 const ModelCompare::FileValidationResult* CTabXmlValidationDlg::GetSelectedFileResult() const {
-    const auto* modelReport = GetModelReport(m_selectedModel);
-    if (!modelReport || m_selectedFileIndex < 0
-        || m_selectedFileIndex >= (int)modelReport->fileResults.size())
+    if (!m_report || m_selectedFileIndex < 0
+        || m_selectedFileIndex >= (int)m_report->fileResults.size())
         return nullptr;
-    return &modelReport->fileResults[m_selectedFileIndex];
-}
-
-const ModelCompare::ModelValidationReport* CTabXmlValidationDlg::GetModelReport(
-    SelectedModel model) const
-{
-    if (!m_report) return nullptr;
-    switch (model) {
-    case SelectedModel::Left:  return &m_report->leftReport;
-    case SelectedModel::Right: return &m_report->rightReport;
-    default: return nullptr;
-    }
+    return &m_report->fileResults[m_selectedFileIndex];
 }
 
 void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
@@ -497,25 +371,14 @@ void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
     int issueX = fileListW + Theme::Get()->LayoutGap();
     int issueW = cx - issueX;
 
-    
-    int halfH = (cy - Theme::Get()->LayoutHeaderHeight() * 2 - Theme::Get()->LayoutGap()) / 2;  
-    if (halfH < MIN_HALF_HEIGHT) halfH = MIN_HALF_HEIGHT;
-
-    HDWP hDwp = ::BeginDeferWindowPos(10);
+    HDWP hDwp = ::BeginDeferWindowPos(8);
     if (!hDwp) return;
 
     
-    hDwp = ::DeferWindowPos(hDwp, m_staticLeftHeader.GetSafeHwnd(), NULL,
+    hDwp = ::DeferWindowPos(hDwp, m_staticFileHeader.GetSafeHwnd(), NULL,
         0, 0, fileListW, Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_listLeftFiles.GetSafeHwnd(), NULL,
-        0, Theme::Get()->LayoutHeaderHeight(), fileListW, halfH, SWP_NOZORDER | SWP_NOACTIVATE);
-
-    
-    int rightHeaderY = Theme::Get()->LayoutHeaderHeight() + halfH + Theme::Get()->LayoutGap();
-    hDwp = ::DeferWindowPos(hDwp, m_staticRightHeader.GetSafeHwnd(), NULL,
-        0, rightHeaderY, fileListW, Theme::Get()->LayoutHeaderHeight(), SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_listRightFiles.GetSafeHwnd(), NULL,
-        0, rightHeaderY + Theme::Get()->LayoutHeaderHeight(), fileListW, cy - rightHeaderY - Theme::Get()->LayoutHeaderHeight(),
+    hDwp = ::DeferWindowPos(hDwp, m_listFiles.GetSafeHwnd(), NULL,
+        0, Theme::Get()->LayoutHeaderHeight(), fileListW, cy - Theme::Get()->LayoutHeaderHeight(),
         SWP_NOZORDER | SWP_NOACTIVATE);
 
     
@@ -543,26 +406,30 @@ void CTabXmlValidationDlg::OnSize(UINT nType, int cx, int cy) {
     if (m_btnCorruptInfo.GetSafeHwnd() && m_btnCorruptInfo.IsWindowVisible()) {
         int btnW = CORRUPT_BTN_W;
         int btnH = CORRUPT_BTN_H;
+        int panelH = cy - Theme::Get()->LayoutHeaderHeight();
         int btnX = issueX + (issueW - btnW) / 2;
-        int btnY = Theme::Get()->LayoutHeaderHeight() + (cy - Theme::Get()->LayoutHeaderHeight() - btnH) / 2;
+        int btnY = Theme::Get()->LayoutHeaderHeight() + (panelH - btnH - CORRUPT_DESC_H - 10) / 2;
         m_btnCorruptInfo.SetWindowPos(&wndTop, btnX, btnY, btnW, btnH, SWP_NOACTIVATE);
+
+        
+        if (m_staticCorruptDesc.GetSafeHwnd()) {
+            int descX = issueX + (issueW - CORRUPT_DESC_W) / 2;
+            int descY = btnY + btnH + 10;
+            m_staticCorruptDesc.SetWindowPos(NULL, descX, descY, CORRUPT_DESC_W, CORRUPT_DESC_H,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+        }
     }
 
     ResizeListColumns();
 }
 
 void CTabXmlValidationDlg::ResizeListColumns() {
-    if (!m_listLeftFiles.GetSafeHwnd() || !m_listRightFiles.GetSafeHwnd()
-        || !m_listIssues.GetSafeHwnd()) return;
+    if (!m_listFiles.GetSafeHwnd() || !m_listIssues.GetSafeHwnd()) return;
 
     
-    CRect leftRect;
-    m_listLeftFiles.GetClientRect(&leftRect);
-    m_listLeftFiles.SetColumnWidth(0, leftRect.Width() - FILE_LIST_MARGIN);
-
-    CRect rightRect;
-    m_listRightFiles.GetClientRect(&rightRect);
-    m_listRightFiles.SetColumnWidth(0, rightRect.Width() - FILE_LIST_MARGIN);
+    CRect fileRect;
+    m_listFiles.GetClientRect(&fileRect);
+    m_listFiles.SetColumnWidth(0, fileRect.Width() - FILE_LIST_MARGIN);
 
     
     CRect issueRect;
@@ -571,14 +438,14 @@ void CTabXmlValidationDlg::ResizeListColumns() {
 
     if (totalWidth > 0) {
         
-        const double colRatios[7] = { 0.18, 0.13, 0.14, 0.14, 0.11, 0.22, 0.08 };
-        int w[7], sum = 0;
-        for (int i = 0; i < 6; ++i) {
+        const double colRatios[3] = { 0.30, 0.60, 0.10 };
+        int w[3], sum = 0;
+        for (int i = 0; i < 2; ++i) {
             w[i] = (int)(totalWidth * colRatios[i]);
             sum += w[i];
         }
-        w[6] = totalWidth - sum - 3;
-        for (int i = 0; i < 7; ++i)
+        w[2] = totalWidth - sum - 3;
+        for (int i = 0; i < 3; ++i)
             m_listIssues.SetColumnWidth(i, w[i]);
     }
 }
@@ -599,22 +466,13 @@ void CTabXmlValidationDlg::OnIssueListGetInfoTip(NMHDR* pNMHDR, LRESULT* pResult
     _tcsncpy_s(pInfoTip->pszText, pInfoTip->cchTextMax, text, _TRUNCATE);
 }
 
-void CTabXmlValidationDlg::OnLeftFileListGetInfoTip(NMHDR* pNMHDR, LRESULT* pResult) {
+void CTabXmlValidationDlg::OnFileListGetInfoTip(NMHDR* pNMHDR, LRESULT* pResult) {
     auto* pInfoTip = reinterpret_cast<NMLVGETINFOTIP*>(pNMHDR);
     *pResult = 0;
     if (pInfoTip->iItem < 0) return;
-    CString text = m_listLeftFiles.GetItemText(pInfoTip->iItem, 0);
+    CString text = m_listFiles.GetItemText(pInfoTip->iItem, 0);
     _tcsncpy_s(pInfoTip->pszText, pInfoTip->cchTextMax, text, _TRUNCATE);
 }
-
-void CTabXmlValidationDlg::OnRightFileListGetInfoTip(NMHDR* pNMHDR, LRESULT* pResult) {
-    auto* pInfoTip = reinterpret_cast<NMLVGETINFOTIP*>(pNMHDR);
-    *pResult = 0;
-    if (pInfoTip->iItem < 0) return;
-    CString text = m_listRightFiles.GetItemText(pInfoTip->iItem, 0);
-    _tcsncpy_s(pInfoTip->pszText, pInfoTip->cchTextMax, text, _TRUNCATE);
-}
-
 
 
 
@@ -632,11 +490,14 @@ HBRUSH CTabXmlValidationDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
         UINT ctrlId = pWnd->GetDlgCtrlID();
         pDC->SetBkMode(TRANSPARENT);
         if (ctrlId == IDC_STATIC_VALFILES_LEFT_HEADER
-            || ctrlId == IDC_STATIC_VALFILES_RIGHT_HEADER
             || ctrlId == IDC_STATIC_VALISSUES_HEADER)
         {
             pDC->SetTextColor(Theme::Get()->HeaderText());
             return m_brushPanelBg;
+        }
+        if (ctrlId == 2003) {
+            pDC->SetTextColor(Theme::Get()->TextSecondary());
+            return m_brushDialogBg;
         }
         pDC->SetTextColor(Theme::Get()->TextPrimary());
         return m_brushDialogBg;
@@ -723,24 +584,115 @@ void CTabXmlValidationDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStr
 
 
 
-void CTabXmlValidationDlg::OnLeftFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult) {
-    auto* pCD = reinterpret_cast<NMLVCUSTOMDRAW*>(pNMHDR);
-    *pResult = CDRF_DODEFAULT;
-    if (pCD->nmcd.dwDrawStage == CDDS_PREPAINT) { *pResult = CDRF_NOTIFYITEMDRAW; return; }
-    if (pCD->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
-        
-        pCD->clrTextBk = Theme::Get()->DialogBg();
-        pCD->clrText = Theme::Get()->TextPrimary();
+BOOL CTabXmlValidationDlg::PreTranslateMessage(MSG* pMsg) {
+    if (pMsg->message == WM_MOUSEMOVE) {
+        if (pMsg->hwnd == m_listFiles.GetSafeHwnd()) {
+            CPoint pt = pMsg->pt; m_listFiles.ScreenToClient(&pt);
+            LVHITTESTINFO hit = {pt}; m_listFiles.HitTest(&hit);
+            if (hit.iItem != m_hoverFiles.index) {
+                int oldIdx = m_hoverFiles.index;
+                m_hoverFiles.index = hit.iItem;
+                if (oldIdx != -1) m_listFiles.RedrawItems(oldIdx, oldIdx);
+                if (hit.iItem != -1) m_listFiles.RedrawItems(hit.iItem, hit.iItem);
+                
+                if (!m_hoverFiles.isTracking) {
+                    TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, m_listFiles.GetSafeHwnd(), 0 };
+                    TrackMouseEvent(&tme);
+                    m_hoverFiles.isTracking = true;
+                }
+            }
+        } else if (pMsg->hwnd == m_listIssues.GetSafeHwnd()) {
+            CPoint pt = pMsg->pt; m_listIssues.ScreenToClient(&pt);
+            LVHITTESTINFO hit = {pt}; m_listIssues.HitTest(&hit);
+            if (hit.iItem != m_hoverIssues.index) {
+                int oldIdx = m_hoverIssues.index;
+                m_hoverIssues.index = hit.iItem;
+                if (oldIdx != -1) m_listIssues.RedrawItems(oldIdx, oldIdx);
+                if (hit.iItem != -1) m_listIssues.RedrawItems(hit.iItem, hit.iItem);
+                
+                if (!m_hoverIssues.isTracking) {
+                    TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, m_listIssues.GetSafeHwnd(), 0 };
+                    TrackMouseEvent(&tme);
+                    m_hoverIssues.isTracking = true;
+                }
+            }
+        }
+    } else if (pMsg->message == WM_MOUSELEAVE) {
+        if (pMsg->hwnd == m_listFiles.GetSafeHwnd()) {
+            m_hoverFiles.fadeIndex = m_hoverFiles.index;
+            m_hoverFiles.index = -1;
+            m_hoverFiles.fadeStep = 0;
+            m_hoverFiles.isTracking = false;
+            SetTimer(1, 30, NULL);
+        } else if (pMsg->hwnd == m_listIssues.GetSafeHwnd()) {
+            m_hoverIssues.fadeIndex = m_hoverIssues.index;
+            m_hoverIssues.index = -1;
+            m_hoverIssues.fadeStep = 0;
+            m_hoverIssues.isTracking = false;
+            SetTimer(2, 30, NULL);
+        }
     }
+    return CDialogEx::PreTranslateMessage(pMsg);
 }
 
-void CTabXmlValidationDlg::OnRightFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult) {
-    auto* pCD = reinterpret_cast<NMLVCUSTOMDRAW*>(pNMHDR);
+void CTabXmlValidationDlg::OnTimer(UINT_PTR nIDEvent) {
+    if (nIDEvent == 1 && m_hoverFiles.fadeIndex != -1) {
+        if (m_hoverFiles.fadeStep < 5) {
+            m_hoverFiles.fadeStep++;
+            m_listFiles.RedrawItems(m_hoverFiles.fadeIndex, m_hoverFiles.fadeIndex);
+        } else {
+            KillTimer(1);
+            m_hoverFiles.fadeIndex = -1;
+        }
+    } else if (nIDEvent == 2 && m_hoverIssues.fadeIndex != -1) {
+        if (m_hoverIssues.fadeStep < 5) {
+            m_hoverIssues.fadeStep++;
+            m_listIssues.RedrawItems(m_hoverIssues.fadeIndex, m_hoverIssues.fadeIndex);
+        } else {
+            KillTimer(2);
+            m_hoverIssues.fadeIndex = -1;
+        }
+    }
+    CDialogEx::OnTimer(nIDEvent);
+}
+
+void CTabXmlValidationDlg::OnFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult) {
+    LPNMLVCUSTOMDRAW pCD = reinterpret_cast<LPNMLVCUSTOMDRAW>(pNMHDR);
     *pResult = CDRF_DODEFAULT;
-    if (pCD->nmcd.dwDrawStage == CDDS_PREPAINT) { *pResult = CDRF_NOTIFYITEMDRAW; return; }
-    if (pCD->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
-        pCD->clrTextBk = Theme::Get()->DialogBg();
+
+    switch (pCD->nmcd.dwDrawStage) {
+    case CDDS_PREPAINT:
+        *pResult = CDRF_NOTIFYITEMDRAW;
+        break;
+    case CDDS_ITEMPREPAINT: {
+        pCD->nmcd.uItemState &= ~CDIS_SELECTED;
+
+        int row = (int)pCD->nmcd.dwItemSpec;
+        bool isSelected = (m_listFiles.GetItemState(row, LVIS_SELECTED) & LVIS_SELECTED) != 0;
+        bool isHovered = (row == m_hoverFiles.index);
+        bool isFading = (row == m_hoverFiles.fadeIndex && m_hoverFiles.fadeStep < 5 && m_hoverFiles.fadeIndex != -1);
+        
+        COLORREF defaultBg = (row % 2 == 0) ? Theme::Get()->AltRowBg() : Theme::Get()->NormalRowBg();
+        COLORREF bg = defaultBg;
+        
+        if (isSelected) {
+            bg = Theme::Get()->SelectionBg();
+        } else if (isHovered) {
+            bg = Theme::Get()->HoverBg();
+        } else if (isFading) {
+            float t = m_hoverFiles.fadeStep / 5.0f;
+            bg = RGB(
+                GetRValue(Theme::Get()->HoverBg()) + (GetRValue(defaultBg) - GetRValue(Theme::Get()->HoverBg())) * t,
+                GetGValue(Theme::Get()->HoverBg()) + (GetGValue(defaultBg) - GetGValue(Theme::Get()->HoverBg())) * t,
+                GetBValue(Theme::Get()->HoverBg()) + (GetBValue(defaultBg) - GetBValue(Theme::Get()->HoverBg())) * t
+            );
+        }
+        
+        pCD->clrTextBk = bg;
         pCD->clrText = Theme::Get()->TextPrimary();
+        *pResult = CDRF_DODEFAULT;
+        break;
+    }
     }
 }
 
@@ -753,15 +705,38 @@ void CTabXmlValidationDlg::OnIssueListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult
         return;
     }
     if (pCD->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
+        pCD->nmcd.uItemState &= ~CDIS_SELECTED;
         *pResult = CDRF_NOTIFYSUBITEMDRAW;
         return;
     }
     if (pCD->nmcd.dwDrawStage == (CDDS_ITEMPREPAINT | CDDS_SUBITEM)) {
+        pCD->nmcd.uItemState &= ~CDIS_SELECTED;
         int row = (int)pCD->nmcd.dwItemSpec;
         int displayIdx = (int)pCD->nmcd.lItemlParam;
         int subItem = pCD->iSubItem;
 
-        COLORREF bg = Theme::Get()->DialogBg();
+        bool isSelected = (m_listIssues.GetItemState(row, LVIS_SELECTED) & LVIS_SELECTED) != 0;
+        bool isHovered = (row == m_hoverIssues.index);
+        bool isFading = (row == m_hoverIssues.fadeIndex && m_hoverIssues.fadeStep < 5 && m_hoverIssues.fadeIndex != -1);
+        
+        if (subItem == COL_VIEW) { isSelected = false; isHovered = false; isFading = false; }
+
+        COLORREF defaultBg = Theme::Get()->DialogBg();
+        COLORREF bg = defaultBg;
+        
+        if (isSelected) {
+            bg = Theme::Get()->SelectionBg();
+        } else if (isHovered) {
+            bg = Theme::Get()->HoverBg();
+        } else if (isFading) {
+            float t = m_hoverIssues.fadeStep / 5.0f;
+            bg = RGB(
+                GetRValue(Theme::Get()->HoverBg()) + (GetRValue(defaultBg) - GetRValue(Theme::Get()->HoverBg())) * t,
+                GetGValue(Theme::Get()->HoverBg()) + (GetGValue(defaultBg) - GetGValue(Theme::Get()->HoverBg())) * t,
+                GetBValue(Theme::Get()->HoverBg()) + (GetBValue(defaultBg) - GetBValue(Theme::Get()->HoverBg())) * t
+            );
+        }
+
         COLORREF txt = Theme::Get()->TextPrimary();
 
         if (displayIdx >= 0 && subItem == COL_VIEW) {
@@ -812,6 +787,23 @@ void CTabXmlValidationDlg::OnIssueListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult
             pDC->SetTextColor(txt);
             CFont* pOldFont = pDC->SelectObject(m_listIssues.GetFont());
             pDC->DrawText(text, &rect, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX | DT_END_ELLIPSIS | DT_EDITCONTROL);
+            pDC->SelectObject(pOldFont);
+            *pResult = CDRF_SKIPDEFAULT;
+            return;
+        }
+
+        if (subItem == COL_KEY) {
+            CDC* pDC = CDC::FromHandle(pCD->nmcd.hdc);
+            CRect rect;
+            m_listIssues.GetSubItemRect(row, subItem, LVIR_LABEL, rect);
+            pDC->FillSolidRect(&rect, bg);
+            rect.DeflateRect(6, 4);
+
+            CString text = m_listIssues.GetItemText(row, subItem);
+            pDC->SetBkMode(TRANSPARENT);
+            pDC->SetTextColor(txt);
+            CFont* pOldFont = pDC->SelectObject(m_listIssues.GetFont());
+            pDC->DrawText(text, &rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
             pDC->SelectObject(pOldFont);
             *pResult = CDRF_SKIPDEFAULT;
             return;

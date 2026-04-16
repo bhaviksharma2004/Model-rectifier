@@ -37,6 +37,8 @@ public:
     COLORREF BtnViewXmlPrsd() const { return RGB(55, 110, 190); }
 
     // State Colors
+    COLORREF SelectionBg() const { return RGB(204, 232, 255); }
+    COLORREF HoverBg() const { return RGB(229, 243, 255); }
     COLORREF DeletedBg() const { return RGB(255, 215, 215); }
     COLORREF DeletedTxt() const { return RGB(170, 0, 0); }
     COLORREF AddedBg() const { return RGB(215, 255, 215); }

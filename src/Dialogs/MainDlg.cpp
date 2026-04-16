@@ -76,6 +76,17 @@ BOOL CMainDlg::OnInitDialog() {
     m_brushDialogBg.CreateSolidBrush(Theme::Get()->DialogBg());
     m_brushEditBg.CreateSolidBrush(Theme::Get()->EditBg());
 
+    LOGFONT lfLegend = {};
+    wcscpy_s(lfLegend.lfFaceName, _T("Segoe UI"));
+    lfLegend.lfHeight = -12;
+    lfLegend.lfItalic = TRUE;
+    m_legendFont.CreateFontIndirect(&lfLegend);
+
+    m_staticChecksLegend.Create(
+        _T("Checks:  Duplicate IDs \x00B7 Empty IDs \x00B7 Missing Attributes \x00B7 Hierarchy mismatch \x00B7 Unrecognized Tags \x00B7 Corrupt XML"),
+        WS_CHILD | SS_LEFT | SS_NOPREFIX, CRect(0, 0, 0, 0), this, 2004);
+    m_staticChecksLegend.SetFont(&m_legendFont);
+
     m_btnCompare.SetFont(&m_uiFont);
     m_btnCompare.ModifyStyle(0, BS_OWNERDRAW);
 
@@ -111,10 +122,26 @@ void CMainDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult) {
     m_tabXmlVal.ShowWindow(sel == 1 ? SW_SHOW : SW_HIDE);
     m_tabSpecVal.ShowWindow(sel == 2 ? SW_SHOW : SW_HIDE);
 
-    switch (sel) {
-    case 0:  m_btnCompare.SetWindowText(_T("Compare\nModels")); break;
-    case 1:  m_btnCompare.SetWindowText(_T("Validate\nModels")); break;
-    case 2:  m_btnCompare.SetWindowText(_T("Compare\nValues")); break;
+    CWnd* pRL = GetDlgItem(IDC_STATIC_RIGHT_LABEL);
+    CWnd* pLL = GetDlgItem(IDC_STATIC_LEFT_LABEL);
+
+    if (sel == 1) {
+        m_editRightPath.ShowWindow(SW_HIDE);
+        m_btnBrowseRight.ShowWindow(SW_HIDE);
+        if (pRL) pRL->ShowWindow(SW_HIDE);
+        if (pLL) pLL->SetWindowText(_T("Model Path:"));
+        m_btnCompare.SetWindowText(_T("Validate\nModel"));
+        m_staticChecksLegend.ShowWindow(SW_SHOW);
+    } else {
+        m_editRightPath.ShowWindow(SW_SHOW);
+        m_btnBrowseRight.ShowWindow(SW_SHOW);
+        if (pRL) pRL->ShowWindow(SW_SHOW);
+        if (pLL) pLL->SetWindowText(_T("Left Model (Reference):"));
+        m_staticChecksLegend.ShowWindow(SW_HIDE);
+        switch (sel) {
+        case 0:  m_btnCompare.SetWindowText(_T("Compare\nModels")); break;
+        case 2:  m_btnCompare.SetWindowText(_T("Compare\nValues")); break;
+        }
     }
 
     CRect rcClient;
@@ -140,21 +167,35 @@ void CMainDlg::OnBnClickedBrowseRight() {
 }
 
 void CMainDlg::OnBnClickedCompare() {
-    CString lp, rp;
+    int activeTab = m_tabMain.GetCurSel();
+
+    CString lp;
     m_editLeftPath.GetWindowText(lp);
-    m_editRightPath.GetWindowText(rp);
-    if (lp.IsEmpty() || rp.IsEmpty()) {
-        AfxMessageBox(_T("Please select both model folders."), MB_ICONWARNING);
-        return;
-    }
-    if (!std::filesystem::exists((LPCWSTR)lp) || !std::filesystem::exists((LPCWSTR)rp)) {
-        AfxMessageBox(_T("One or both folders do not exist."), MB_ICONERROR);
-        return;
+
+    if (activeTab == 1) {
+        if (lp.IsEmpty()) {
+            AfxMessageBox(_T("Please select a model folder."), MB_ICONWARNING);
+            return;
+        }
+        if (!std::filesystem::exists((LPCWSTR)lp)) {
+            AfxMessageBox(_T("The selected folder does not exist."), MB_ICONERROR);
+            return;
+        }
+    } else {
+        CString rp;
+        m_editRightPath.GetWindowText(rp);
+        if (lp.IsEmpty() || rp.IsEmpty()) {
+            AfxMessageBox(_T("Please select both model folders."), MB_ICONWARNING);
+            return;
+        }
+        if (!std::filesystem::exists((LPCWSTR)lp) || !std::filesystem::exists((LPCWSTR)rp)) {
+            AfxMessageBox(_T("One or both folders do not exist."), MB_ICONERROR);
+            return;
+        }
     }
 
     EnableCompareUI(false);
 
-    int activeTab = m_tabMain.GetCurSel();
     switch (activeTab) {
     case 0:
         UpdateSummary(_T("Comparing..."));
@@ -206,38 +247,30 @@ LRESULT CMainDlg::OnCompareComplete(WPARAM, LPARAM lParam) {
 }
 
 void CMainDlg::RunValidation() {
-    CString lp, rp;
+    CString lp;
     m_editLeftPath.GetWindowText(lp);
-    m_editRightPath.GetWindowText(rp);
     HWND hWnd = GetSafeHwnd();
 
     if (m_workerThread.joinable())
         m_workerThread.join();
-    m_workerThread = std::thread([lw = std::wstring((LPCWSTR)lp),
-                 rw = std::wstring((LPCWSTR)rp), hWnd]() {
-        auto* report = new ModelCompare::ValidationReport(
-            ModelCompare::XmlValidationEngine::ValidateModels(
-                std::filesystem::path(lw),
-                std::filesystem::path(rw)));
+    m_workerThread = std::thread([lw = std::wstring((LPCWSTR)lp), hWnd]() {
+        auto* report = new ModelCompare::ModelValidationReport(
+            ModelCompare::XmlValidationEngine::ValidateModel(
+                std::filesystem::path(lw)));
         ::PostMessage(hWnd, WM_VALIDATE_COMPLETE, 0, (LPARAM)report);
     });
 }
 
 LRESULT CMainDlg::OnValidateComplete(WPARAM, LPARAM lParam) {
-    if (m_bClosing) { delete reinterpret_cast<ModelCompare::ValidationReport*>(lParam); return 0; }
+    if (m_bClosing) { delete reinterpret_cast<ModelCompare::ModelValidationReport*>(lParam); return 0; }
     m_validationReport.reset(
-        reinterpret_cast<ModelCompare::ValidationReport*>(lParam));
-
-    size_t totalIssues = m_validationReport->leftReport.totalIssues
-                       + m_validationReport->rightReport.totalIssues;
-    size_t totalFilesWithIssues = m_validationReport->leftReport.totalFilesWithIssues
-                                + m_validationReport->rightReport.totalFilesWithIssues;
-    size_t totalScanned = m_validationReport->leftReport.totalFilesScanned
-                        + m_validationReport->rightReport.totalFilesScanned;
+        reinterpret_cast<ModelCompare::ModelValidationReport*>(lParam));
 
     CString s;
     s.Format(_T("%zu issue(s) found  |  %zu file(s) with issues  |  %zu file(s) scanned"),
-        totalIssues, totalFilesWithIssues, totalScanned);
+        m_validationReport->totalIssues,
+        m_validationReport->totalFilesWithIssues,
+        m_validationReport->totalFilesScanned);
     UpdateSummary(s);
 
     m_tabXmlVal.SetValidationReport(m_validationReport);
@@ -302,7 +335,10 @@ void CMainDlg::OnSize(UINT nType, int cx, int cy) {
 void CMainDlg::RepositionControls(int cx, int cy) {
     if (!m_editLeftPath.GetSafeHwnd()) return;
 
-    HDWP hDwp = ::BeginDeferWindowPos(10);
+    int activeTab = m_tabMain.GetCurSel();
+    bool isValidationTab = (activeTab == 1);
+
+    HDWP hDwp = ::BeginDeferWindowPos(12);
     if (!hDwp) return;
 
     int cmpX = cx - Theme::Get()->LayoutMargin() - LAYOUT_CMP_W;
@@ -313,17 +349,38 @@ void CMainDlg::RepositionControls(int cx, int cy) {
     if (editW < MIN_EDIT_W) editW = MIN_EDIT_W;
     int y = Theme::Get()->LayoutMargin();
 
-    CWnd* pLL = GetDlgItem(IDC_STATIC_LEFT_LABEL);
-    if (pLL) hDwp = ::DeferWindowPos(hDwp, pLL->GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), y + 3, 150, 24, SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_editLeftPath.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap(), y, editW, 24, SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_btnBrowseLeft.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap() + editW + Theme::Get()->LayoutGap(), y, 65, 24, SWP_NOZORDER | SWP_NOACTIVATE);
-    y += 24 + Theme::Get()->LayoutGap();
+    if (isValidationTab) {
+        int btnCenterY = cmpY + LAYOUT_CMP_H / 2;
+        int inputRowY = btnCenterY - 12;
 
-    CWnd* pRL = GetDlgItem(IDC_STATIC_RIGHT_LABEL);
-    if (pRL) hDwp = ::DeferWindowPos(hDwp, pRL->GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), y + 3, 150, 24, SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_editRightPath.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap(), y, editW, 24, SWP_NOZORDER | SWP_NOACTIVATE);
-    hDwp = ::DeferWindowPos(hDwp, m_btnBrowseRight.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap() + editW + Theme::Get()->LayoutGap(), y, 65, 24, SWP_NOZORDER | SWP_NOACTIVATE);
-    y += 24 + Theme::Get()->LayoutGap();
+        CWnd* pLL = GetDlgItem(IDC_STATIC_LEFT_LABEL);
+        if (pLL) hDwp = ::DeferWindowPos(hDwp, pLL->GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), inputRowY + 3, 150, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+        hDwp = ::DeferWindowPos(hDwp, m_editLeftPath.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap(), inputRowY, editW, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+        hDwp = ::DeferWindowPos(hDwp, m_btnBrowseLeft.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap() + editW + Theme::Get()->LayoutGap(), inputRowY, 65, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+
+        int legendY = inputRowY + 24 + 4;
+        int legendX = Theme::Get()->LayoutMargin();
+        int legendW = maxInputRight - legendX;
+        hDwp = ::DeferWindowPos(hDwp, m_staticChecksLegend.GetSafeHwnd(), NULL,
+            legendX, legendY, legendW, 16, SWP_NOZORDER | SWP_NOACTIVATE);
+
+        CWnd* pRL = GetDlgItem(IDC_STATIC_RIGHT_LABEL);
+        if (pRL) hDwp = ::DeferWindowPos(hDwp, pRL->GetSafeHwnd(), NULL, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+        hDwp = ::DeferWindowPos(hDwp, m_editRightPath.GetSafeHwnd(), NULL, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+        hDwp = ::DeferWindowPos(hDwp, m_btnBrowseRight.GetSafeHwnd(), NULL, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+    } else {
+        CWnd* pLL = GetDlgItem(IDC_STATIC_LEFT_LABEL);
+        if (pLL) hDwp = ::DeferWindowPos(hDwp, pLL->GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), y + 3, 150, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+        hDwp = ::DeferWindowPos(hDwp, m_editLeftPath.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap(), y, editW, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+        hDwp = ::DeferWindowPos(hDwp, m_btnBrowseLeft.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap() + editW + Theme::Get()->LayoutGap(), y, 65, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+        y += 24 + Theme::Get()->LayoutGap();
+
+        CWnd* pRL = GetDlgItem(IDC_STATIC_RIGHT_LABEL);
+        if (pRL) hDwp = ::DeferWindowPos(hDwp, pRL->GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin(), y + 3, 150, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+        hDwp = ::DeferWindowPos(hDwp, m_editRightPath.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap(), y, editW, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+        hDwp = ::DeferWindowPos(hDwp, m_btnBrowseRight.GetSafeHwnd(), NULL, Theme::Get()->LayoutMargin() + 150 + Theme::Get()->LayoutGap() + editW + Theme::Get()->LayoutGap(), y, 65, 24, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    y = Theme::Get()->LayoutMargin() + 24 + Theme::Get()->LayoutGap() + 24 + Theme::Get()->LayoutGap();
 
     hDwp = ::DeferWindowPos(hDwp, m_btnCompare.GetSafeHwnd(), NULL, cmpX, cmpY, LAYOUT_CMP_W, LAYOUT_CMP_H, SWP_NOZORDER | SWP_NOACTIVATE);
 
@@ -359,6 +416,7 @@ HBRUSH CMainDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
     case CTLCOLOR_STATIC: {
         UINT ctrlId = pWnd->GetDlgCtrlID(); pDC->SetBkMode(TRANSPARENT);
         if (ctrlId == IDC_STATIC_SUMMARY) { pDC->SetTextColor(Theme::Get()->TextSecondary()); return (HBRUSH)m_brushDialogBg; }
+        if (ctrlId == 2004) { pDC->SetTextColor(Theme::Get()->TextSecondary()); return (HBRUSH)m_brushDialogBg; }
         pDC->SetTextColor(Theme::Get()->TextPrimary()); return (HBRUSH)m_brushDialogBg;
     }
     case CTLCOLOR_EDIT: pDC->SetBkColor(Theme::Get()->EditBg()); pDC->SetTextColor(Theme::Get()->TextPrimary()); return (HBRUSH)m_brushEditBg;
@@ -415,4 +473,10 @@ void CMainDlg::OnDestroy() {
 
 void CMainDlg::OnClose() {
     CDialogEx::OnCancel();
+}
+
+void CMainDlg::OnOK() {
+}
+
+void CMainDlg::OnCancel() {
 }

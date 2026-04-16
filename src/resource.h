@@ -40,9 +40,7 @@
 
 // XML Validation Tab — File Lists
 #define IDC_STATIC_VALFILES_LEFT_HEADER   1200
-#define IDC_STATIC_VALFILES_RIGHT_HEADER  1201
 #define IDC_LIST_VALFILES_LEFT            1202
-#define IDC_LIST_VALFILES_RIGHT           1203
 
 // XML Validation Tab — Issue List & Controls
 #define IDC_STATIC_VALISSUES_HEADER       1204

@@ -18,7 +18,7 @@ enum class ValidationIssueType {
     DuplicateValId,
 
     MissingRequiredAttribute,
-    OrphanedElement,
+    HierarchyMismatch,
     UnrecognizedTag,
     InvalidDataFormat
 };
@@ -27,11 +27,8 @@ struct ValidationIssue {
     ValidationIssueType type;
     std::string description;        
     std::string groupId;
-    std::string groupName;
     std::string specId;
-    std::string specName;
     std::string valId;
-    std::string valName;
     std::string elementTag;         
     int lineNumber = -1;    
 
@@ -48,6 +45,7 @@ struct FileValidationResult {
     
     bool        isCorrupt = false;
     std::string corruptionDetail;       
+    int         corruptionLineNumber = -1;
     
     std::vector<ValidationIssue> issues;
 
@@ -69,16 +67,10 @@ struct ModelValidationReport {
     size_t totalIssues          = 0;
 };
 
-struct ValidationReport {
-    ModelValidationReport leftReport;
-    ModelValidationReport rightReport;
-};
-
 class XmlValidationEngine {
 public:   
-    static ValidationReport ValidateModels(
-        const std::filesystem::path& leftRoot,
-        const std::filesystem::path& rightRoot);
+    static ModelValidationReport ValidateModel(
+        const std::filesystem::path& modelRoot);
 
 private:
     
@@ -100,7 +92,7 @@ private:
 
     
     
-    static void CheckOrphanedElements(
+    static void CheckHierarchyMismatches(
         tinyxml2::XMLDocument& doc,
         FileValidationResult& result);
 

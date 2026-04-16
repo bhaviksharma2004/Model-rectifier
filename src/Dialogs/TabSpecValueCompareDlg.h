@@ -15,8 +15,10 @@ public:
 protected:
     virtual void DoDataExchange(CDataExchange* pDX) override;
     virtual BOOL OnInitDialog() override;
+    virtual BOOL PreTranslateMessage(MSG* pMsg) override;
 
     afx_msg void OnSize(UINT nType, int cx, int cy);
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
     afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 
@@ -41,8 +43,18 @@ private:
     CFont       m_headerFont;
 
     CBrush m_brushDialogBg;
+    CBrush m_brushPanelBg;
 
     int m_selectedFileIndex = -1;
     std::shared_ptr<ModelCompare::ValueDiffReport> m_report;
+
+    struct HoverState {
+        int index = -1;
+        int fadeIndex = -1;
+        int fadeStep = 0;
+        bool isTracking = false;
+    };
+    HoverState m_hoverFiles;
+    HoverState m_hoverMiss;
 
 };

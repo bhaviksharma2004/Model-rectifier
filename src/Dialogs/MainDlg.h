@@ -41,6 +41,8 @@ protected:
     afx_msg LRESULT OnValueCompareComplete(WPARAM wParam, LPARAM lParam);
     afx_msg void OnDestroy();
     afx_msg void OnClose();
+    virtual void OnOK() override;
+    virtual void OnCancel() override;
 
     DECLARE_MESSAGE_MAP()
 
@@ -51,6 +53,7 @@ private:
     CButton     m_btnBrowseRight;
     CButton     m_btnCompare;
     CStatic     m_staticSummary;
+    CStatic     m_staticChecksLegend;
 
     CTabCtrl    m_tabMain;
     CTabSpecIdCompareDlg m_tabSpecId;
@@ -58,7 +61,7 @@ private:
     CTabSpecValueCompareDlg m_tabSpecVal;
 
     std::shared_ptr<ModelCompare::ModelDiffReport> m_report;
-    std::shared_ptr<ModelCompare::ValidationReport> m_validationReport;
+    std::shared_ptr<ModelCompare::ModelValidationReport> m_validationReport;
     std::shared_ptr<ModelCompare::ValueDiffReport> m_valueReport;
 
     CString BrowseForFolder(const CString& title);
@@ -74,6 +77,7 @@ private:
 
     CFont  m_uiFont;
     CFont  m_headerFont;
+    CFont  m_legendFont;
 
     CBrush m_brushDialogBg;
     CBrush m_brushPanelBg;

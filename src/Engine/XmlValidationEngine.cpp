@@ -58,14 +58,10 @@ static std::vector<std::filesystem::path> EnumerateXmlFiles(
 
 
 
-ValidationReport XmlValidationEngine::ValidateModels(
-    const std::filesystem::path& leftRoot,
-    const std::filesystem::path& rightRoot)
+ModelValidationReport XmlValidationEngine::ValidateModel(
+    const std::filesystem::path& modelRoot)
 {
-    ValidationReport report;
-    report.leftReport  = ValidateSingleModel(leftRoot);
-    report.rightReport = ValidateSingleModel(rightRoot);
-    return report;
+    return ValidateSingleModel(modelRoot);
 }
 
 ModelValidationReport XmlValidationEngine::ValidateSingleModel(
@@ -99,6 +95,8 @@ FileValidationResult XmlValidationEngine::ValidateFile(
     FileValidationResult result;
     result.absolutePath = filePath;
     result.relativePath = std::filesystem::relative(filePath, modelRoot);
+
+    std::string rawUtf8;
     {
         std::ifstream fs(filePath, std::ios::in | std::ios::binary);
         if (!fs.is_open()) {
@@ -107,12 +105,19 @@ FileValidationResult XmlValidationEngine::ValidateFile(
             return result;
         }
 
-        std::string raw;
-        while (std::getline(fs, raw)) {
-            if (!raw.empty() && raw.back() == '\r') raw.pop_back();
-            result.cachedLines.push_back(CString(CA2W(raw.c_str(), CP_UTF8)));
-        }
+        std::ostringstream ss;
+        ss << fs.rdbuf();
+        rawUtf8 = ss.str();
         fs.close();
+    }
+
+    {
+        std::istringstream lineStream(rawUtf8);
+        std::string line;
+        while (std::getline(lineStream, line)) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            result.cachedLines.push_back(CString(CA2W(line.c_str(), CP_UTF8)));
+        }
 
         size_t totalChars = 0;
         for (const auto& ln : result.cachedLines)
@@ -126,18 +131,16 @@ FileValidationResult XmlValidationEngine::ValidateFile(
     }
 
     tinyxml2::XMLDocument doc;
-    {  
-        CStringA utf8Content(result.cachedFullText);
-        if (doc.Parse(utf8Content.GetString(), utf8Content.GetLength()) != tinyxml2::XML_SUCCESS) {
-            result.isCorrupt = true;
-            result.corruptionDetail = doc.ErrorStr();       
-            return result;
-        }
+    if (doc.Parse(rawUtf8.c_str(), rawUtf8.size()) != tinyxml2::XML_SUCCESS) {
+        result.isCorrupt = true;
+        result.corruptionDetail = doc.ErrorStr();
+        result.corruptionLineNumber = doc.ErrorLineNum();
+        return result;
     }
 
     CheckDuplicateIds(doc, result);
     CheckMissingRequiredAttributes(doc, result);
-    CheckOrphanedElements(doc, result);
+    CheckHierarchyMismatches(doc, result);
     CheckUnrecognizedTags(doc, result);
     CheckInvalidDataFormats(doc, result);
     return result;
@@ -150,7 +153,7 @@ void XmlValidationEngine::CheckDuplicateIds(
     auto* dataElem = doc.FirstChildElement("data");
     if (!dataElem) return;
     {
-        struct GroupInfo { std::string name; int line; };
+        struct GroupInfo { int line; };
         std::unordered_map<std::string, std::vector<GroupInfo>> groupIdMap;
 
         for (auto* groupElem = dataElem->FirstChildElement("group");
@@ -158,8 +161,7 @@ void XmlValidationEngine::CheckDuplicateIds(
         {
             std::string gid = SafeAttr(groupElem, "group_ID");
             if (gid.empty()) continue;
-            std::string gname = SafeAttr(groupElem, "group_name");
-            groupIdMap[gid].push_back({ gname, GetElementLineNumber(groupElem) });
+            groupIdMap[gid].push_back({ GetElementLineNumber(groupElem) });
         }
 
         for (const auto& [id, occurrences] : groupIdMap) {
@@ -168,7 +170,6 @@ void XmlValidationEngine::CheckDuplicateIds(
                 ValidationIssue issue;
                 issue.type        = ValidationIssueType::DuplicateGroupId;
                 issue.groupId     = id;
-                issue.groupName   = occ.name;
                 issue.elementTag  = "group";
                 issue.lineNumber  = occ.line;
                 issue.description = "Duplicate group_ID '" + id + "'";
@@ -182,9 +183,8 @@ void XmlValidationEngine::CheckDuplicateIds(
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
         std::string gid   = SafeAttr(groupElem, "group_ID");
-        std::string gname = SafeAttr(groupElem, "group_name");
 
-        struct SpecInfo { std::string name; int line; };
+        struct SpecInfo { int line; };
         std::unordered_map<std::string, std::vector<SpecInfo>> specIdMap;
 
         for (auto* specElem = groupElem->FirstChildElement("spec");
@@ -192,8 +192,7 @@ void XmlValidationEngine::CheckDuplicateIds(
         {
             std::string sid = SafeAttr(specElem, "spec_ID");
             if (sid.empty()) continue;
-            std::string sname = SafeAttr(specElem, "spec_name");
-            specIdMap[sid].push_back({ sname, GetElementLineNumber(specElem) });
+            specIdMap[sid].push_back({ GetElementLineNumber(specElem) });
         }
 
         for (const auto& [id, occurrences] : specIdMap) {
@@ -202,9 +201,7 @@ void XmlValidationEngine::CheckDuplicateIds(
                 ValidationIssue issue;  
                 issue.type        = ValidationIssueType::DuplicateSpecId;
                 issue.groupId     = gid;
-                issue.groupName   = gname;
                 issue.specId      = id;
-                issue.specName    = occ.name;
                 issue.elementTag  = "spec";
                 issue.lineNumber  = occ.line;
                 issue.description = "Duplicate spec_ID '" + id + "'";
@@ -218,15 +215,13 @@ void XmlValidationEngine::CheckDuplicateIds(
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
         std::string gid   = SafeAttr(groupElem, "group_ID");
-        std::string gname = SafeAttr(groupElem, "group_name");
 
         for (auto* specElem = groupElem->FirstChildElement("spec");
              specElem; specElem = specElem->NextSiblingElement("spec"))
         {
             std::string sid   = SafeAttr(specElem, "spec_ID");
-            std::string sname = SafeAttr(specElem, "spec_name");
 
-            struct ValInfo { std::string name; int line; };
+            struct ValInfo { int line; };
             std::unordered_map<std::string, std::vector<ValInfo>> valIdMap;
 
             for (auto* valElem = specElem->FirstChildElement("val");
@@ -234,8 +229,7 @@ void XmlValidationEngine::CheckDuplicateIds(
             {
                 std::string vid = SafeAttr(valElem, "val_id");
                 if (vid.empty()) continue;
-                std::string vname = SafeAttr(valElem, "val_name");
-                valIdMap[vid].push_back({ vname, GetElementLineNumber(valElem) });
+                valIdMap[vid].push_back({ GetElementLineNumber(valElem) });
             }
 
             for (const auto& [id, occurrences] : valIdMap) {
@@ -244,11 +238,8 @@ void XmlValidationEngine::CheckDuplicateIds(
                     ValidationIssue issue;
                     issue.type        = ValidationIssueType::DuplicateValId;
                     issue.groupId     = gid;
-                    issue.groupName   = gname;
                     issue.specId      = sid;
-                    issue.specName    = sname;
                     issue.valId       = id;
-                    issue.valName     = occ.name;
                     issue.elementTag  = "val";
                     issue.lineNumber  = occ.line;
                     issue.description = "Duplicate val_id '" + id + "'";
@@ -275,7 +266,6 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
         std::string gid   = SafeAttr(groupElem, "group_ID");
-        std::string gname = SafeAttr(groupElem, "group_name");
 
         
         const char* groupRequiredAttrs[] = { "group_ID", "group_name" };
@@ -284,7 +274,6 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
                 ValidationIssue issue;
                 issue.type        = ValidationIssueType::MissingRequiredAttribute;
                 issue.groupId     = gid;
-                issue.groupName   = gname;
                 issue.elementTag  = "group";
                 issue.lineNumber  = GetElementLineNumber(groupElem);
                 issue.description = std::string("Missing required attribute '")
@@ -297,7 +286,6 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
              specElem; specElem = specElem->NextSiblingElement("spec"))
         {
             std::string sid   = SafeAttr(specElem, "spec_ID");
-            std::string sname = SafeAttr(specElem, "spec_name");
 
             
             const char* specRequiredAttrs[] = { "spec_ID", "spec_name" };
@@ -306,9 +294,7 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
                     ValidationIssue issue;
                     issue.type        = ValidationIssueType::MissingRequiredAttribute;
                     issue.groupId     = gid;
-                    issue.groupName   = gname;
                     issue.specId      = sid;
-                    issue.specName    = sname;
                     issue.elementTag  = "spec";
                     issue.lineNumber  = GetElementLineNumber(specElem);
                     issue.description = std::string("Missing required attribute '")
@@ -321,7 +307,6 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
                  valElem; valElem = valElem->NextSiblingElement("val"))
             {
                 std::string vid   = SafeAttr(valElem, "val_id");
-                std::string vname = SafeAttr(valElem, "val_name");
 
                 
                 const char* valRequiredAttrs[] = { "val_id", "val_name" };
@@ -330,11 +315,8 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
                         ValidationIssue issue;
                         issue.type        = ValidationIssueType::MissingRequiredAttribute;
                         issue.groupId     = gid;
-                        issue.groupName   = gname;
                         issue.specId      = sid;
-                        issue.specName    = sname;
                         issue.valId       = vid;
-                        issue.valName     = vname;
                         issue.elementTag  = "val";
                         issue.lineNumber  = GetElementLineNumber(valElem);
                         issue.description = std::string("Missing required attribute '")
@@ -348,7 +330,7 @@ void XmlValidationEngine::CheckMissingRequiredAttributes(
 }
 
 
-void XmlValidationEngine::CheckOrphanedElements(
+void XmlValidationEngine::CheckHierarchyMismatches(
     tinyxml2::XMLDocument& doc,
     FileValidationResult& result)
 {
@@ -363,22 +345,20 @@ void XmlValidationEngine::CheckOrphanedElements(
 
         if (tag == "spec") {
             ValidationIssue issue;
-            issue.type        = ValidationIssueType::OrphanedElement;
+            issue.type        = ValidationIssueType::HierarchyMismatch;
             issue.specId      = SafeAttr(child, "spec_ID");
-            issue.specName    = SafeAttr(child, "spec_name");
             issue.elementTag  = "spec";
             issue.lineNumber  = GetElementLineNumber(child);
-            issue.description = "Orphaned element: <spec> found outside expected parent <group>";
+            issue.description = "Hierarchy mismatch: <spec> found outside expected parent <group>";
             result.issues.push_back(std::move(issue));
         }
         else if (tag == "val") {
             ValidationIssue issue;
-            issue.type        = ValidationIssueType::OrphanedElement;
+            issue.type        = ValidationIssueType::HierarchyMismatch;
             issue.valId       = SafeAttr(child, "val_id");
-            issue.valName     = SafeAttr(child, "val_name");
             issue.elementTag  = "val";
             issue.lineNumber  = GetElementLineNumber(child);
-            issue.description = "Orphaned element: <val> found outside expected parent <spec>";
+            issue.description = "Hierarchy mismatch: <val> found outside expected parent <spec>";
             result.issues.push_back(std::move(issue));
         }
     }
@@ -388,7 +368,6 @@ void XmlValidationEngine::CheckOrphanedElements(
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
         std::string gid   = SafeAttr(groupElem, "group_ID");
-        std::string gname = SafeAttr(groupElem, "group_name");
 
         for (auto* child = groupElem->FirstChildElement();
              child; child = child->NextSiblingElement())
@@ -397,14 +376,12 @@ void XmlValidationEngine::CheckOrphanedElements(
 
             if (tag == "val") {
                 ValidationIssue issue;
-                issue.type        = ValidationIssueType::OrphanedElement;
+                issue.type        = ValidationIssueType::HierarchyMismatch;
                 issue.groupId     = gid;
-                issue.groupName   = gname;
                 issue.valId       = SafeAttr(child, "val_id");
-                issue.valName     = SafeAttr(child, "val_name");
                 issue.elementTag  = "val";
                 issue.lineNumber  = GetElementLineNumber(child);
-                issue.description = "Orphaned element: <val> found outside expected parent <spec>";
+                issue.description = "Hierarchy mismatch: <val> found outside expected parent <spec>";
                 result.issues.push_back(std::move(issue));
             }
         }
@@ -447,17 +424,14 @@ void XmlValidationEngine::ScanForUnrecognizedTags(
             std::string parentTag = parent->Name() ? parent->Name() : "";
             if (parentTag == "spec") {
                 issue.specId   = SafeAttr(parent, "spec_ID");
-                issue.specName = SafeAttr(parent, "spec_name");
                 
                 auto* gp = parent->Parent() ? parent->Parent()->ToElement() : nullptr;
                 if (gp && std::string(gp->Name() ? gp->Name() : "") == "group") {
                     issue.groupId   = SafeAttr(gp, "group_ID");
-                    issue.groupName = SafeAttr(gp, "group_name");
                 }
             }
             else if (parentTag == "group") {
                 issue.groupId   = SafeAttr(parent, "group_ID");
-                issue.groupName = SafeAttr(parent, "group_name");
             }
         }
 
@@ -484,14 +458,19 @@ void XmlValidationEngine::CheckInvalidDataFormats(
          groupElem; groupElem = groupElem->NextSiblingElement("group"))
     {
         std::string gid   = SafeAttr(groupElem, "group_ID");
-        std::string gname = SafeAttr(groupElem, "group_name");
 
-        
-        if (!gid.empty() && !IsNumericString(gid)) {
+        if (groupElem->Attribute("group_ID") && gid.empty()) {
+            ValidationIssue issue;
+            issue.type        = ValidationIssueType::InvalidDataFormat;
+            issue.elementTag  = "group";
+            issue.lineNumber  = GetElementLineNumber(groupElem);
+            issue.description = "group_ID is empty";
+            result.issues.push_back(std::move(issue));
+        }
+        else if (!gid.empty() && !IsNumericString(gid)) {
             ValidationIssue issue;
             issue.type        = ValidationIssueType::InvalidDataFormat;
             issue.groupId     = gid;
-            issue.groupName   = gname;
             issue.elementTag  = "group";
             issue.lineNumber  = GetElementLineNumber(groupElem);
             issue.description = "Invalid data format: Attribute 'group_ID' expects numeric value, found '"
@@ -503,16 +482,21 @@ void XmlValidationEngine::CheckInvalidDataFormats(
              specElem; specElem = specElem->NextSiblingElement("spec"))
         {
             std::string sid   = SafeAttr(specElem, "spec_ID");
-            std::string sname = SafeAttr(specElem, "spec_name");
 
-            
-            if (!sid.empty() && !IsNumericString(sid)) {
+            if (specElem->Attribute("spec_ID") && sid.empty()) {
                 ValidationIssue issue;
                 issue.type        = ValidationIssueType::InvalidDataFormat;
                 issue.groupId     = gid;
-                issue.groupName   = gname;
+                issue.elementTag  = "spec";
+                issue.lineNumber  = GetElementLineNumber(specElem);
+                issue.description = "spec_ID is empty";
+                result.issues.push_back(std::move(issue));
+            }
+            else if (!sid.empty() && !IsNumericString(sid)) {
+                ValidationIssue issue;
+                issue.type        = ValidationIssueType::InvalidDataFormat;
+                issue.groupId     = gid;
                 issue.specId      = sid;
-                issue.specName    = sname;
                 issue.elementTag  = "spec";
                 issue.lineNumber  = GetElementLineNumber(specElem);
                 issue.description = "Invalid data format: Attribute 'spec_ID' expects numeric value, found '"
@@ -524,18 +508,23 @@ void XmlValidationEngine::CheckInvalidDataFormats(
                  valElem; valElem = valElem->NextSiblingElement("val"))
             {
                 std::string vid   = SafeAttr(valElem, "val_id");
-                std::string vname = SafeAttr(valElem, "val_name");
 
-                
-                if (!vid.empty() && !IsNumericString(vid)) {
+                if (valElem->Attribute("val_id") && vid.empty()) {
                     ValidationIssue issue;
                     issue.type        = ValidationIssueType::InvalidDataFormat;
                     issue.groupId     = gid;
-                    issue.groupName   = gname;
                     issue.specId      = sid;
-                    issue.specName    = sname;
+                    issue.elementTag  = "val";
+                    issue.lineNumber  = GetElementLineNumber(valElem);
+                    issue.description = "val_id is empty";
+                    result.issues.push_back(std::move(issue));
+                }
+                else if (!vid.empty() && !IsNumericString(vid)) {
+                    ValidationIssue issue;
+                    issue.type        = ValidationIssueType::InvalidDataFormat;
+                    issue.groupId     = gid;
+                    issue.specId      = sid;
                     issue.valId       = vid;
-                    issue.valName     = vname;
                     issue.elementTag  = "val";
                     issue.lineNumber  = GetElementLineNumber(valElem);
                     issue.description = "Invalid data format: Attribute 'val_id' expects numeric value, found '"

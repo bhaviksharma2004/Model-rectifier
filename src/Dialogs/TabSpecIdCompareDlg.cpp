@@ -105,7 +105,6 @@ BOOL CTabSpecIdCompareDlg::OnInitDialog() {
 
     ModifyStyle(0, WS_CLIPCHILDREN);
     ::SetWindowTheme(m_listFiles.GetSafeHwnd(), L"Explorer", NULL);
-    ::SetWindowTheme(m_listMismatches.GetSafeHwnd(), L"Explorer", NULL);
 
     return TRUE;
 }
@@ -238,9 +237,18 @@ void CTabSpecIdCompareDlg::PopulateFileList() {
 void CTabSpecIdCompareDlg::OnFileListItemChanged(NMHDR* pNMHDR, LRESULT* pResult) {
     auto* pNM = reinterpret_cast<NMLISTVIEW*>(pNMHDR);
     *pResult = 0;
-    if (!(pNM->uChanged & LVIF_STATE) || !(pNM->uNewState & LVIS_SELECTED)) return;
-    int fi = (int)m_listFiles.GetItemData(pNM->iItem);
-    PopulateMismatchList(fi);
+    if ((pNM->uChanged & LVIF_STATE) && (pNM->uNewState & LVIS_SELECTED)) {
+        int fi = (int)m_listFiles.GetItemData(pNM->iItem);
+        PopulateMismatchList(fi);
+    } else if ((pNM->uChanged & LVIF_STATE) && m_listFiles.GetSelectedCount() == 0 && m_selectedFileIndex != -1) {
+        
+        for (int i = 0; i < m_listFiles.GetItemCount(); i++) {
+            if ((int)m_listFiles.GetItemData(i) == m_selectedFileIndex) {
+                m_listFiles.SetItemState(i, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+                break;
+            }
+        }
+    }
 }
 
 void CTabSpecIdCompareDlg::PopulateMismatchList(int fileIndex) {

@@ -37,6 +37,7 @@
 
 BEGIN_MESSAGE_MAP(CTabSpecValueCompareDlg, CDialogEx)
     ON_WM_SIZE()
+    ON_WM_TIMER()
     ON_WM_CTLCOLOR()
     ON_WM_ERASEBKGND()
     ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST_VC_FILES, &CTabSpecValueCompareDlg::OnFileListItemChanged)
@@ -64,8 +65,11 @@ BOOL CTabSpecValueCompareDlg::OnInitDialog() {
     lf.lfHeight = Theme::Get()->FontSizeDefault();
     m_uiFont.CreateFontIndirect(&lf);
 
-    lf.lfWeight = FW_BOLD;
-    m_headerFont.CreateFontIndirect(&lf);
+    LOGFONT lfHeader = {};
+    wcscpy_s(lfHeader.lfFaceName, _T("Segoe UI Semibold"));
+    lfHeader.lfHeight = Theme::Get()->FontSizeHeader();
+    lfHeader.lfWeight = FW_SEMIBOLD;
+    m_headerFont.CreateFontIndirect(&lfHeader);
 
     m_staticFilesHeader.SetFont(&m_headerFont);
     m_staticMismatchHeader.SetFont(&m_headerFont);
@@ -73,9 +77,13 @@ BOOL CTabSpecValueCompareDlg::OnInitDialog() {
     m_listMismatches.SetFont(&m_uiFont);
 
     m_brushDialogBg.CreateSolidBrush(Theme::Get()->DialogBg());
+    m_brushPanelBg.CreateSolidBrush(Theme::Get()->PanelBg());
 
     m_listFiles.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
     m_listMismatches.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_GRIDLINES);
+
+    m_listFiles.ModifyStyle(0, LVS_SINGLESEL);
+    m_listMismatches.ModifyStyle(0, LVS_SINGLESEL);
 
     SetupListColumns();
     return TRUE;
@@ -168,7 +176,7 @@ HBRUSH CTabSpecValueCompareDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
         } else {
             pDC->SetTextColor(Theme::Get()->TextPrimary());
         }
-        return m_brushDialogBg;
+        return m_brushPanelBg;
     }
     return hbr;
 }
@@ -210,7 +218,7 @@ void CTabSpecValueCompareDlg::OnFileListItemChanged(NMHDR* pNMHDR, LRESULT* pRes
             m_selectedFileIndex = pNMLV->iItem;
             PopulateMismatchList(m_selectedFileIndex);
         }
-    } else if (m_listFiles.GetSelectedCount() == 0) {
+    } else if ((pNMLV->uChanged & LVIF_STATE) && m_listFiles.GetSelectedCount() == 0 && m_selectedFileIndex != -1) {
         m_selectedFileIndex = -1;
         ClearMismatchList();
     }
@@ -248,34 +256,154 @@ void CTabSpecValueCompareDlg::PopulateMismatchList(int fileIndex) {
     m_listMismatches.SetRedraw(TRUE);
 }
 
+BOOL CTabSpecValueCompareDlg::PreTranslateMessage(MSG* pMsg) {
+    if (pMsg->message == WM_MOUSEMOVE) {
+        if (pMsg->hwnd == m_listFiles.GetSafeHwnd()) {
+            CPoint pt = pMsg->pt; m_listFiles.ScreenToClient(&pt);
+            LVHITTESTINFO hit = {pt}; m_listFiles.HitTest(&hit);
+            if (hit.iItem != m_hoverFiles.index) {
+                int oldIdx = m_hoverFiles.index;
+                m_hoverFiles.index = hit.iItem;
+                if (oldIdx != -1) m_listFiles.RedrawItems(oldIdx, oldIdx);
+                if (hit.iItem != -1) m_listFiles.RedrawItems(hit.iItem, hit.iItem);
+                
+                if (!m_hoverFiles.isTracking) {
+                    TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, m_listFiles.GetSafeHwnd(), 0 };
+                    TrackMouseEvent(&tme);
+                    m_hoverFiles.isTracking = true;
+                }
+            }
+        } else if (pMsg->hwnd == m_listMismatches.GetSafeHwnd()) {
+            CPoint pt = pMsg->pt; m_listMismatches.ScreenToClient(&pt);
+            LVHITTESTINFO hit = {pt}; m_listMismatches.HitTest(&hit);
+            if (hit.iItem != m_hoverMiss.index) {
+                int oldIdx = m_hoverMiss.index;
+                m_hoverMiss.index = hit.iItem;
+                if (oldIdx != -1) m_listMismatches.RedrawItems(oldIdx, oldIdx);
+                if (hit.iItem != -1) m_listMismatches.RedrawItems(hit.iItem, hit.iItem);
+                
+                if (!m_hoverMiss.isTracking) {
+                    TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, m_listMismatches.GetSafeHwnd(), 0 };
+                    TrackMouseEvent(&tme);
+                    m_hoverMiss.isTracking = true;
+                }
+            }
+        }
+    } else if (pMsg->message == WM_MOUSELEAVE) {
+        if (pMsg->hwnd == m_listFiles.GetSafeHwnd()) {
+            m_hoverFiles.fadeIndex = m_hoverFiles.index;
+            m_hoverFiles.index = -1;
+            m_hoverFiles.fadeStep = 0;
+            m_hoverFiles.isTracking = false;
+            SetTimer(1, 30, NULL);
+        } else if (pMsg->hwnd == m_listMismatches.GetSafeHwnd()) {
+            m_hoverMiss.fadeIndex = m_hoverMiss.index;
+            m_hoverMiss.index = -1;
+            m_hoverMiss.fadeStep = 0;
+            m_hoverMiss.isTracking = false;
+            SetTimer(2, 30, NULL);
+        }
+    }
+    return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+void CTabSpecValueCompareDlg::OnTimer(UINT_PTR nIDEvent) {
+    if (nIDEvent == 1 && m_hoverFiles.fadeIndex != -1) {
+        if (m_hoverFiles.fadeStep < 5) {
+            m_hoverFiles.fadeStep++;
+            m_listFiles.RedrawItems(m_hoverFiles.fadeIndex, m_hoverFiles.fadeIndex);
+        } else {
+            KillTimer(1);
+            m_hoverFiles.fadeIndex = -1;
+        }
+    } else if (nIDEvent == 2 && m_hoverMiss.fadeIndex != -1) {
+        if (m_hoverMiss.fadeStep < 5) {
+            m_hoverMiss.fadeStep++;
+            m_listMismatches.RedrawItems(m_hoverMiss.fadeIndex, m_hoverMiss.fadeIndex);
+        } else {
+            KillTimer(2);
+            m_hoverMiss.fadeIndex = -1;
+        }
+    }
+    CDialogEx::OnTimer(nIDEvent);
+}
+
 void CTabSpecValueCompareDlg::OnFileListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult) {
-    LPNMLVCUSTOMDRAW pLVCD = reinterpret_cast<LPNMLVCUSTOMDRAW>(pNMHDR);
+    LPNMLVCUSTOMDRAW pCD = reinterpret_cast<LPNMLVCUSTOMDRAW>(pNMHDR);
     *pResult = CDRF_DODEFAULT;
 
-    switch (pLVCD->nmcd.dwDrawStage) {
+    switch (pCD->nmcd.dwDrawStage) {
     case CDDS_PREPAINT:
         *pResult = CDRF_NOTIFYITEMDRAW;
         break;
-    case CDDS_ITEMPREPAINT:
-        pLVCD->clrTextBk = (pLVCD->nmcd.dwItemSpec % 2 == 0) ? Theme::Get()->AltRowBg() : Theme::Get()->NormalRowBg();
-        pLVCD->clrText = Theme::Get()->TextPrimary();
+    case CDDS_ITEMPREPAINT: {
+        pCD->nmcd.uItemState &= ~CDIS_SELECTED;
+
+        int row = (int)pCD->nmcd.dwItemSpec;
+        bool isSelected = (m_listFiles.GetItemState(row, LVIS_SELECTED) & LVIS_SELECTED) != 0;
+        bool isHovered = (row == m_hoverFiles.index);
+        bool isFading = (row == m_hoverFiles.fadeIndex && m_hoverFiles.fadeStep < 5 && m_hoverFiles.fadeIndex != -1);
+        
+        COLORREF defaultBg = (row % 2 == 0) ? Theme::Get()->AltRowBg() : Theme::Get()->NormalRowBg();
+        COLORREF bg = defaultBg;
+        
+        if (isSelected) {
+            bg = Theme::Get()->SelectionBg();
+        } else if (isHovered) {
+            bg = Theme::Get()->HoverBg();
+        } else if (isFading) {
+            float t = m_hoverFiles.fadeStep / 5.0f;
+            bg = RGB(
+                GetRValue(Theme::Get()->HoverBg()) + (GetRValue(defaultBg) - GetRValue(Theme::Get()->HoverBg())) * t,
+                GetGValue(Theme::Get()->HoverBg()) + (GetGValue(defaultBg) - GetGValue(Theme::Get()->HoverBg())) * t,
+                GetBValue(Theme::Get()->HoverBg()) + (GetBValue(defaultBg) - GetBValue(Theme::Get()->HoverBg())) * t
+            );
+        }
+        
+        pCD->clrTextBk = bg;
+        pCD->clrText = Theme::Get()->TextPrimary();
         *pResult = CDRF_DODEFAULT;
         break;
+    }
     }
 }
 
 void CTabSpecValueCompareDlg::OnMismatchListCustomDraw(NMHDR* pNMHDR, LRESULT* pResult) {
-    LPNMLVCUSTOMDRAW pLVCD = reinterpret_cast<LPNMLVCUSTOMDRAW>(pNMHDR);
+    LPNMLVCUSTOMDRAW pCD = reinterpret_cast<LPNMLVCUSTOMDRAW>(pNMHDR);
     *pResult = CDRF_DODEFAULT;
 
-    switch (pLVCD->nmcd.dwDrawStage) {
+    switch (pCD->nmcd.dwDrawStage) {
     case CDDS_PREPAINT:
         *pResult = CDRF_NOTIFYITEMDRAW;
         break;
-    case CDDS_ITEMPREPAINT:
-        pLVCD->clrTextBk = (pLVCD->nmcd.dwItemSpec % 2 == 0) ? Theme::Get()->AltRowBg() : Theme::Get()->NormalRowBg();
-        pLVCD->clrText = Theme::Get()->TextPrimary();
+    case CDDS_ITEMPREPAINT: {
+        pCD->nmcd.uItemState &= ~CDIS_SELECTED;
+
+        int row = (int)pCD->nmcd.dwItemSpec;
+        bool isSelected = (m_listMismatches.GetItemState(row, LVIS_SELECTED) & LVIS_SELECTED) != 0;
+        bool isHovered = (row == m_hoverMiss.index);
+        bool isFading = (row == m_hoverMiss.fadeIndex && m_hoverMiss.fadeStep < 5 && m_hoverMiss.fadeIndex != -1);
+        
+        COLORREF defaultBg = (row % 2 == 0) ? Theme::Get()->AltRowBg() : Theme::Get()->NormalRowBg();
+        COLORREF bg = defaultBg;
+        
+        if (isSelected) {
+            bg = Theme::Get()->SelectionBg();
+        } else if (isHovered) {
+            bg = Theme::Get()->HoverBg();
+        } else if (isFading) {
+            float t = m_hoverMiss.fadeStep / 5.0f;
+            bg = RGB(
+                GetRValue(Theme::Get()->HoverBg()) + (GetRValue(defaultBg) - GetRValue(Theme::Get()->HoverBg())) * t,
+                GetGValue(Theme::Get()->HoverBg()) + (GetGValue(defaultBg) - GetGValue(Theme::Get()->HoverBg())) * t,
+                GetBValue(Theme::Get()->HoverBg()) + (GetBValue(defaultBg) - GetBValue(Theme::Get()->HoverBg())) * t
+            );
+        }
+        
+        pCD->clrTextBk = bg;
+        pCD->clrText = Theme::Get()->TextPrimary();
         *pResult = CDRF_DODEFAULT;
         break;
+    }
     }
 }
